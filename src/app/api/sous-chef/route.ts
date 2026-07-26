@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
     // 3. Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // 4. Build prompt
     const systemPrompt = `You are the AI Sous-Chef for PlateIQ Bistro, an advanced restaurant assistant.
@@ -92,7 +92,7 @@ CUSTOMER REQUEST:
   } catch (error: any) {
     console.error("CRITICAL AI Sous-Chef Endpoint Error Details:", error);
     return NextResponse.json({ 
-      error: `AI Error: ${error.message || "Unknown error occurred"}. Ensure your Vercel GEMINI_API_KEY is set to a valid AI Studio key (starts with 'AIzaSy').` 
+      error: `AI Error: ${error.message || "Unknown error occurred"}. Ensure your Vercel GEMINI_API_KEY is set to a valid Google AI Studio API key.` 
     }, { status: 500 });
   }
 }
