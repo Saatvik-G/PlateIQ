@@ -37,9 +37,9 @@ export async function ensureSeeded() {
     { id: "ing_ginger", name: "Fresh Ginger", unit: "g", currentStock: 400, lowStockThreshold: 100, expiryDate: null, isSurplus: false },
     { id: "ing_garlic", name: "Fresh Garlic", unit: "g", currentStock: 500, lowStockThreshold: 100, expiryDate: null, isSurplus: false },
     { id: "ing_onion", name: "Red Onion", unit: "g", currentStock: 2500, lowStockThreshold: 600, expiryDate: null, isSurplus: false },
-    { id: "ing_yogurt", name: "Plain Yogurt", unit: "g", currentStock: 1500, lowStockThreshold: 500, expiryDate: null, isSurplus: true }, // Surplus
+    { id: "ing_yogurt", name: "Plain Yogurt", unit: "g", currentStock: 1500, lowStockThreshold: 500, expiryDate: null, isSurplus: false },
     { id: "ing_spinach", name: "Fresh Spinach", unit: "g", currentStock: 800, lowStockThreshold: 200, expiryDate: null, isSurplus: true }, // Surplus
-    { id: "ing_potato", name: "Potato", unit: "g", currentStock: 3000, lowStockThreshold: 800, expiryDate: null, isSurplus: true }, // Surplus
+    { id: "ing_potato", name: "Potato", unit: "g", currentStock: 3000, lowStockThreshold: 800, expiryDate: null, isSurplus: false },
     { id: "ing_peas", name: "Green Peas", unit: "g", currentStock: 1000, lowStockThreshold: 300, expiryDate: null, isSurplus: false },
     { id: "ing_chickpeas", name: "Chickpeas", unit: "g", currentStock: 2000, lowStockThreshold: 500, expiryDate: null, isSurplus: false },
     { id: "ing_lentils", name: "Black Lentils", unit: "g", currentStock: 3000, lowStockThreshold: 800, expiryDate: null, isSurplus: false },
@@ -415,6 +415,51 @@ export async function ensureSeeded() {
         { ingredientId: "ing_ginger", quantityRequired: 5 },
         { ingredientId: "ing_cardamom", quantityRequired: 2 },
         { ingredientId: "ing_sugar", quantityRequired: 10 },
+      ],
+    },
+    {
+      id: "menu_jalebi",
+      name: "Saffron Jalebi",
+      description: "Crispy, spiral-shaped deep-fried maida batter wheels soaked in sweet cardamom and saffron syrup.",
+      price: 100,
+      category: "Desserts",
+      imageUrl: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop",
+      isAvailable: true,
+      recipeMap: [
+        { ingredientId: "ing_maida", quantityRequired: 50 },
+        { ingredientId: "ing_sugar", quantityRequired: 100 },
+        { ingredientId: "ing_ghee", quantityRequired: 10 },
+      ],
+    },
+    {
+      id: "menu_paneer_amritsari",
+      name: "Amritsari Paneer Fry",
+      description: "Crispy paneer strips marinated in chickpea flour batter, spices, ginger, and a splash of fresh lemon.",
+      price: 240,
+      category: "Starters",
+      imageUrl: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=500&auto=format&fit=crop",
+      isAvailable: true,
+      recipeMap: [
+        { ingredientId: "ing_paneer", quantityRequired: 150 },
+        { ingredientId: "ing_chickpeas", quantityRequired: 30 },
+        { ingredientId: "ing_ginger", quantityRequired: 5 },
+        { ingredientId: "ing_lemon", quantityRequired: 1 },
+      ],
+    },
+    {
+      id: "menu_lamb_biryani",
+      name: "Royal Lamb Biryani",
+      description: "Fragrant basmati rice layered with tender lamb chunks, cooked with saffron, ghee, and traditional spices.",
+      price: 450,
+      category: "Mains",
+      imageUrl: "https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=500&auto=format&fit=crop",
+      isAvailable: true,
+      recipeMap: [
+        { ingredientId: "ing_lamb", quantityRequired: 150 },
+        { ingredientId: "ing_basmati", quantityRequired: 150 },
+        { ingredientId: "ing_ghee", quantityRequired: 15 },
+        { ingredientId: "ing_garam_masala", quantityRequired: 5 },
+        { ingredientId: "ing_onion", quantityRequired: 50 },
       ],
     },
   ];
