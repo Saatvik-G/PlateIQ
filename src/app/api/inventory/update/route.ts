@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     const restaurantId = "default-restaurant";
 
     const result = await db.runTransaction(async (transaction: any) => {
+      // 1. --- READS FIRST ---
       const ingRef = db.collection("ingredients").doc(ingredientId);
       const ingDoc = await transaction.get(ingRef);
 
@@ -21,6 +22,17 @@ export async function POST(request: Request) {
         throw new Error("Ingredient not found.");
       }
 
+      // Fetch all menu items for the restaurant (read)
+      const menuSnap = await transaction.get(
+        db.collection("menuItems").where("restaurantId", "==", restaurantId)
+      );
+
+      // Fetch all ingredients to get current stocks (read)
+      const ingredientsSnap = await transaction.get(
+        db.collection("ingredients").where("restaurantId", "==", restaurantId)
+      );
+
+      // 2. --- WRITES SECOND ---
       const ingData = ingDoc.data();
       if (!ingData) throw new Error("Ingredient data is empty.");
 
@@ -28,7 +40,7 @@ export async function POST(request: Request) {
       let stockChanged = false;
       let newStock = ingData.currentStock;
 
-      // 1. Handle Restock
+      // Handle Restock
       if (typeof restockQty === "number" && restockQty !== 0) {
         newStock = ingData.currentStock + restockQty;
         updates.currentStock = newStock;
@@ -45,7 +57,7 @@ export async function POST(request: Request) {
         });
       }
 
-      // 2. Handle Surplus / Expiry
+      // Handle Surplus / Expiry
       if (typeof isSurplus === "boolean") {
         updates.isSurplus = isSurplus;
       }
@@ -59,18 +71,8 @@ export async function POST(request: Request) {
       // Commit changes to ingredient
       transaction.update(ingRef, updates);
 
-      // 3. If stock changed, run global menu availability sweep
+      // If stock changed, run global menu availability sweep
       if (stockChanged) {
-        // Fetch all menu items for the restaurant
-        const menuSnap = await transaction.get(
-          db.collection("menuItems").where("restaurantId", "==", restaurantId)
-        );
-
-        // Fetch all ingredients to get current stocks
-        const ingredientsSnap = await transaction.get(
-          db.collection("ingredients").where("restaurantId", "==", restaurantId)
-        );
-
         const ingredientsMap = new Map<string, any>();
         ingredientsSnap.forEach((doc: any) => {
           ingredientsMap.set(doc.id, { id: doc.id, ...doc.data() });

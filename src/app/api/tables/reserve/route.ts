@@ -7,57 +7,41 @@ export async function POST(request: Request) {
     const { customerName, partySize, timeSlot } = await request.json();
 
     if (!customerName || !partySize || !timeSlot) {
-      return NextResponse.json(
-        { error: "customerName, partySize, and timeSlot are required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required reservation fields." }, { status: 400 });
     }
 
-    const db = getAdminDb();
     const restaurantId = "default-restaurant";
     const size = parseInt(partySize, 10);
-
     if (isNaN(size) || size <= 0) {
       return NextResponse.json({ error: "Invalid party size." }, { status: 400 });
     }
 
+    const db = getAdminDb();
+
     const result = await db.runTransaction(async (transaction: any) => {
-      // 1. Fetch all tables for this restaurant
+      // 1. --- READS FIRST ---
+      // Fetch all tables for this restaurant
       const tablesSnap = await transaction.get(
         db.collection("tables").where("restaurantId", "==", restaurantId)
       );
 
-      // Auto-create default tables if none exist (for hackathon convenience)
-      const tables: any[] = [];
       if (tablesSnap.empty) {
-        const defaultTables = [
-          { tableNumber: 1, capacity: 2 },
-          { tableNumber: 2, capacity: 2 },
-          { tableNumber: 3, capacity: 4 },
-          { tableNumber: 4, capacity: 4 },
-          { tableNumber: 5, capacity: 6 },
-          { tableNumber: 6, capacity: 8 },
-        ];
-        
-        for (const tbl of defaultTables) {
-          const newRef = db.collection("tables").doc();
-          const tblData = { ...tbl, status: "free", restaurantId };
-          transaction.set(newRef, tblData);
-          tables.push({ id: newRef.id, ...tblData });
-        }
-      } else {
-        tablesSnap.forEach((doc: any) => {
-          tables.push({ id: doc.id, ...doc.data() });
-        });
+        throw new Error("No tables found. Please run the One-Click Demo Seeding first to initialize the tables.");
       }
 
-      // 2. Fetch reservations for this slot that are active (confirmed/pending)
+      // Fetch reservations for this slot that are active (confirmed/pending)
       const reservationsSnap = await transaction.get(
         db.collection("reservations")
           .where("timeSlot", "==", timeSlot)
           .where("status", "==", "confirmed")
       );
-      
+
+      // 2. --- COMPUTATION ---
+      const tables: any[] = [];
+      tablesSnap.forEach((doc: any) => {
+        tables.push({ id: doc.id, ...doc.data() });
+      });
+
       const reservedTableIds = new Set<string>();
       reservationsSnap.forEach((doc: any) => {
         const data = doc.data();
@@ -66,7 +50,7 @@ export async function POST(request: Request) {
         }
       });
 
-      // 3. Find available tables
+      // Find available tables
       const availableTables = tables.filter((table) => {
         // Table is reserved for this timeslot
         if (reservedTableIds.has(table.id)) {
@@ -86,8 +70,7 @@ export async function POST(request: Request) {
         throw new Error(`No available tables matching party size ${size} at slot "${timeSlot}".`);
       }
 
-      // 4. Greedy Match: Sort by capacity (ascending) to minimize idle capacity
-      // If capacity is same, sort by table number
+      // Greedy Match: Sort by capacity (ascending) to minimize idle capacity
       availableTables.sort((a, b) => {
         if (a.capacity !== b.capacity) {
           return a.capacity - b.capacity;
@@ -97,7 +80,8 @@ export async function POST(request: Request) {
 
       const assignedTable = availableTables[0];
 
-      // 5. Create reservation record
+      // 3. --- WRITES SECOND ---
+      // Create reservation record
       const reservationRef = db.collection("reservations").doc();
       const reservationData = {
         restaurantId,
@@ -111,7 +95,7 @@ export async function POST(request: Request) {
       };
       transaction.set(reservationRef, reservationData);
 
-      // 6. If it's a walk-in "now", mark table status as occupied
+      // If it's a walk-in "now", mark table status as occupied
       if (timeSlot === "now") {
         const tableRef = db.collection("tables").doc(assignedTable.id);
         transaction.update(tableRef, { status: "occupied" });
