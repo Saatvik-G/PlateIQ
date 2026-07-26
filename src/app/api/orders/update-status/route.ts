@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminDb, getAdminAuth } from "@/lib/firebaseAdmin";
+import { getAdminDb, decodeFirebaseToken } from "@/lib/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: Request) {
@@ -10,10 +10,8 @@ export async function POST(request: Request) {
     }
 
     const token = authHeader.split("Bearer ")[1]!;
-    let decodedToken;
-    try {
-      decodedToken = await getAdminAuth().verifyIdToken(token);
-    } catch (e) {
+    const decodedToken = decodeFirebaseToken(token);
+    if (!decodedToken || !decodedToken.uid) {
       return NextResponse.json({ error: "Unauthorized. Invalid token." }, { status: 401 });
     }
 

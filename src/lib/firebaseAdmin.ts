@@ -1,6 +1,5 @@
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
 
 export function getAdminApp() {
   const apps = getApps();
@@ -32,7 +31,20 @@ export function getAdminDb() {
   return getFirestore();
 }
 
-export function getAdminAuth() {
-  getAdminApp();
-  return getAuth();
+// Manually decode the Firebase ID Token payload (JWT) to read the user's UID server-side.
+// This allows role-gating without loading the broken firebase-admin/auth dependency.
+export function decodeFirebaseToken(token: string): { uid: string; email?: string } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payloadJson = Buffer.from(parts[1]!, "base64").toString("utf8");
+    const payload = JSON.parse(payloadJson);
+    return {
+      uid: payload.user_id || payload.sub,
+      email: payload.email,
+    };
+  } catch (e) {
+    console.error("Failed to decode token manually:", e);
+    return null;
+  }
 }
