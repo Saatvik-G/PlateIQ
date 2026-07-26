@@ -2,13 +2,6 @@
 
 > A full-stack restaurant platform where dish availability, low-stock alerts, and rescue pricing are not manually toggled — they are computed live from atomic ingredient stock transactions across the entire menu.
 
----
-
-## Team Name
-
-<!-- [PLACEHOLDER: Insert team name] -->
-
----
 
 ## Problem Statement Summary
 
