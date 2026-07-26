@@ -119,7 +119,7 @@ The two collections that allow open client reads and writes are `tasteFeedback` 
 
 ## Hosted Application
 
-<!-- [PLACEHOLDER: Insert Vercel deployment URL, e.g. https://plateiq.vercel.app] -->
+**Live URL:** [https://plateiq-bistro-app.vercel.app](https://plateiq-bistro-app.vercel.app)
 
 ---
 
