@@ -2,27 +2,78 @@ import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Rule-based fallback recommendation when AI quota is unavailable
+function getRuleBasedRecommendation(query: string, availableItems: any[]): string {
+  const q = query.toLowerCase();
+
+  let filtered = [...availableItems];
+
+  if (q.includes("veg") || q.includes("vegetarian")) {
+    filtered = availableItems.filter((i) =>
+      !["chicken", "lamb", "fish", "meat", "beef"].some((m) =>
+        i.name.toLowerCase().includes(m) || i.description.toLowerCase().includes(m)
+      )
+    );
+  } else if (q.includes("spic") || q.includes("hot")) {
+    filtered = availableItems.filter((i) =>
+      ["masala", "tikka", "chana", "rogan", "chili", "spiced"].some((s) =>
+        i.name.toLowerCase().includes(s) || i.description.toLowerCase().includes(s)
+      )
+    );
+  } else if (q.includes("sweet") || q.includes("dessert")) {
+    filtered = availableItems.filter((i) => i.category === "Desserts");
+  } else if (q.includes("drink") || q.includes("beverage") || q.includes("lassi") || q.includes("chai") || q.includes("tea")) {
+    filtered = availableItems.filter((i) => i.category === "Beverages");
+  } else if (q.includes("bread") || q.includes("naan") || q.includes("roti") || q.includes("paratha")) {
+    filtered = availableItems.filter((i) => i.category === "Breads");
+  } else if (q.includes("starter") || q.includes("snack") || q.includes("light")) {
+    filtered = availableItems.filter((i) => i.category === "Starters");
+  } else if (q.includes("chicken")) {
+    filtered = availableItems.filter((i) =>
+      i.name.toLowerCase().includes("chicken") || i.description.toLowerCase().includes("chicken")
+    );
+  } else if (q.includes("lamb") || q.includes("mutton")) {
+    filtered = availableItems.filter((i) =>
+      i.name.toLowerCase().includes("lamb") || i.description.toLowerCase().includes("lamb")
+    );
+  } else if (q.includes("paneer")) {
+    filtered = availableItems.filter((i) =>
+      i.name.toLowerCase().includes("paneer") || i.description.toLowerCase().includes("paneer")
+    );
+  }
+
+  // Check for budget constraint
+  const budgetMatch = q.match(/under\s*[₹rs\s]*(\d+)/i);
+  if (budgetMatch) {
+    const budget = parseInt(budgetMatch[1]);
+    filtered = (filtered.length > 0 ? filtered : availableItems).filter((i) => i.price <= budget);
+  }
+
+  // Fall back to full menu if filter too narrow
+  if (filtered.length === 0) filtered = availableItems;
+
+  // Pick up to 2 recommendations
+  const picks = filtered.slice(0, 2);
+  const formatCurrency = (p: number) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p);
+
+  if (picks.length === 0) {
+    return "I'm sorry, nothing matching your request is currently available. Please check back soon or try a different craving!";
+  }
+
+  if (picks.length === 1) {
+    return `Based on your request, I'd recommend our **${picks[0].name}** (${formatCurrency(picks[0].price)}) — ${picks[0].description}`;
+  }
+
+  return `Based on your request, I'd suggest our **${picks[0].name}** (${formatCurrency(picks[0].price)}) or **${picks[1].name}** (${formatCurrency(picks[1].price)}). Both are freshly available from our kitchen right now!`;
+}
+
 export async function POST(request: Request) {
   try {
     const { query, customerId } = await request.json();
 
     if (!query) {
       return NextResponse.json({ error: "Query is required." }, { status: 400 });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    const isProduction = process.env.NODE_ENV === "production";
-
-    if (!apiKey) {
-      if (isProduction) {
-        throw new Error("CRITICAL: GEMINI_API_KEY environment variable is missing in production.");
-      }
-      
-      // Local development fallback
-      console.warn("GEMINI_API_KEY is missing. Using development mock fallback.");
-      return NextResponse.json({
-        recommendation: `[Simulated Sous-Chef] I see you are asking for: "${query}". (Note: GEMINI_API_KEY is not configured in local environment variables). Based on our live stock ledger, I'd suggest our Classic Margherita Pizza ($14.99) or Gourmet Beef Burger ($12.49) which are fully in-stock and freshly prepared right now!`
-      });
     }
 
     const db = getAdminDb();
@@ -45,6 +96,15 @@ export async function POST(request: Request) {
         category: data.category,
       });
     });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    // If no API key, use rule-based fallback
+    if (!apiKey) {
+      return NextResponse.json({
+        recommendation: getRuleBasedRecommendation(query, availableItems),
+      });
+    }
 
     // 2. Fetch customer preferences if customerId exists
     let preferencesContext = "No prior preferences recorded.";
@@ -84,15 +144,24 @@ ${preferencesContext}
 CUSTOMER REQUEST:
 "${query}"`;
 
-    const result = await model.generateContent(systemPrompt);
-    const response = await result.response;
-    const text = response.text();
+    try {
+      const result = await model.generateContent(systemPrompt);
+      const response = await result.response;
+      const text = response.text();
+      return NextResponse.json({ recommendation: text });
+    } catch (aiError: any) {
+      // AI quota or model error — fall back to rule-based engine silently
+      console.warn("Gemini AI unavailable, using rule-based fallback:", aiError?.message);
+      return NextResponse.json({
+        recommendation: getRuleBasedRecommendation(query, availableItems),
+      });
+    }
 
-    return NextResponse.json({ recommendation: text });
   } catch (error: any) {
-    console.error("CRITICAL AI Sous-Chef Endpoint Error Details:", error);
-    return NextResponse.json({ 
-      error: `AI Error: ${error.message || "Unknown error occurred"}. Ensure your Vercel GEMINI_API_KEY is set to a valid Google AI Studio API key.` 
-    }, { status: 500 });
+    console.error("Sous-Chef endpoint error:", error);
+    return NextResponse.json(
+      { error: "Something went wrong. Please try again." },
+      { status: 500 }
+    );
   }
 }
