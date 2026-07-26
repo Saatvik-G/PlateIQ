@@ -123,7 +123,7 @@ export async function POST(request: Request) {
 
     // 3. Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
 
     // 4. Build prompt
     const systemPrompt = `You are the AI Sous-Chef for PlateIQ Bistro, an advanced restaurant assistant.
