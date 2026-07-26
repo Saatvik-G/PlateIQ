@@ -564,7 +564,7 @@ export default function GuestPage() {
               {[
                 "Suggest something spicy!",
                 "Vegetarian dishes",
-                "Dishes under $10",
+                "Dishes under ₹150",
               ].map((p, idx) => (
                 <button
                   key={idx}

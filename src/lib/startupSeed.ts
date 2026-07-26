@@ -148,7 +148,7 @@ export async function ensureSeeded() {
       description: "Healthy patties made of fresh spinach, boiled potatoes, green peas, and warm garam masala.",
       price: 210,
       category: "Starters",
-      imageUrl: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_spinach", quantityRequired: 100 },
@@ -216,7 +216,7 @@ export async function ensureSeeded() {
       description: "Soft chickpeas cooked in a spicy onion-tomato gravy with red chili and garam masala.",
       price: 290,
       category: "Mains",
-      imageUrl: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_chickpeas", quantityRequired: 150 },
@@ -231,7 +231,7 @@ export async function ensureSeeded() {
       description: "Fresh potato chunks and cauliflower florets tossed with onions, turmeric, and cumin seeds.",
       price: 280,
       category: "Mains",
-      imageUrl: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1645177628172-a94c1f96e6db?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_potato", quantityRequired: 120 },
@@ -246,7 +246,7 @@ export async function ensureSeeded() {
       description: "Tender lamb chunks cooked in rich yogurt gravy flavored with cardamom, fennel, and chilies.",
       price: 580,
       category: "Mains",
-      imageUrl: "https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1574653853027-5382a3d23a15?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_lamb", quantityRequired: 200 },
@@ -264,7 +264,7 @@ export async function ensureSeeded() {
       description: "Leavened maida flatbread topped with garlic and butter, baked in a tandoor.",
       price: 100,
       category: "Breads",
-      imageUrl: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_maida", quantityRequired: 120 },
@@ -279,7 +279,7 @@ export async function ensureSeeded() {
       description: "Soft tandoor-baked flatbread glazed with melted butter.",
       price: 90,
       category: "Breads",
-      imageUrl: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1519984388953-d2406bc725e1?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_maida", quantityRequired: 120 },
@@ -293,7 +293,7 @@ export async function ensureSeeded() {
       description: "Simple, whole wheat tandoor-cooked flatbread brushed with clean ghee.",
       price: 70,
       category: "Breads",
-      imageUrl: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_maida", quantityRequired: 100 },
@@ -306,7 +306,7 @@ export async function ensureSeeded() {
       description: "Multi-layered, crispy tandoori flatbread folded with ghee.",
       price: 110,
       category: "Breads",
-      imageUrl: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1506354666786-959d6d497f1a?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_maida", quantityRequired: 120 },
@@ -336,7 +336,7 @@ export async function ensureSeeded() {
       description: "Traditional Indian rice pudding slow-cooked with basmati, sugar, cardamoms, and cream.",
       price: 170,
       category: "Desserts",
-      imageUrl: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1694667272983-b4ed5f7b5b06?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_basmati", quantityRequired: 50 },
@@ -351,7 +351,7 @@ export async function ensureSeeded() {
       description: "Soft paneer discs soaked in sweet, saffron-infused milk cream topped with cardamoms.",
       price: 190,
       category: "Desserts",
-      imageUrl: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1666461082053-b78f3c9c3fd2?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_paneer", quantityRequired: 50 },
@@ -366,7 +366,7 @@ export async function ensureSeeded() {
       description: "Dense, creamy Indian ice cream flavored with sweet mangoes, cardamom, and thick cream.",
       price: 160,
       category: "Desserts",
-      imageUrl: "https://images.unsplash.com/photo-1560512823-829485b8bf24?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1624374053855-39a5a1d86c5a?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_sugar", quantityRequired: 50 },
@@ -382,7 +382,7 @@ export async function ensureSeeded() {
       description: "Thick, creamy drink made of sweet mangoes, fresh yogurt, and sugar.",
       price: 130,
       category: "Beverages",
-      imageUrl: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_yogurt", quantityRequired: 150 },
@@ -395,7 +395,7 @@ export async function ensureSeeded() {
       description: "Rich yogurt shake sweetened with sugar and flavored with a hint of cardamom.",
       price: 110,
       category: "Beverages",
-      imageUrl: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_yogurt", quantityRequired: 150 },
@@ -408,7 +408,7 @@ export async function ensureSeeded() {
       description: "Hot, spiced milk tea brewed with ginger, cardamoms, sugar, and organic tea leaves.",
       price: 80,
       category: "Beverages",
-      imageUrl: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1561336313-0bd5e0b27ec8?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_tea", quantityRequired: 10 },
@@ -423,7 +423,7 @@ export async function ensureSeeded() {
       description: "Crispy, spiral-shaped deep-fried maida batter wheels soaked in sweet cardamom and saffron syrup.",
       price: 140,
       category: "Desserts",
-      imageUrl: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1593526492486-b0ef55a1e823?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_maida", quantityRequired: 50 },
@@ -437,7 +437,7 @@ export async function ensureSeeded() {
       description: "Crispy paneer strips marinated in chickpea flour batter, spices, ginger, and a splash of fresh lemon.",
       price: 310,
       category: "Starters",
-      imageUrl: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_paneer", quantityRequired: 150 },
@@ -452,7 +452,7 @@ export async function ensureSeeded() {
       description: "Fragrant basmati rice layered with tender lamb chunks, cooked with saffron, ghee, and traditional spices.",
       price: 620,
       category: "Mains",
-      imageUrl: "https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=500&auto=format&fit=crop",
+      imageUrl: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=500&auto=format&fit=crop",
       isAvailable: true,
       recipeMap: [
         { ingredientId: "ing_lamb", quantityRequired: 150 },
