@@ -73,7 +73,7 @@ CRITICAL CONSTRAINTS:
 1. You may ONLY recommend items from the list of CURRENTLY AVAILABLE menu items provided below.
 2. Never recommend any out-of-stock item under any circumstances.
 3. If no available item matches the request, recommend the closest available alternative, and explain why.
-4. Keep your answer brief, warm, and professional (1-3 sentences maximum). Include the exact price of recommended dishes.
+4. Keep your answer brief, warm, and professional (1-3 sentences maximum). Include the exact price of recommended dishes formatted in Indian Rupees (e.g. ₹280).
 
 AVAILABLE MENU ITEMS:
 ${JSON.stringify(availableItems, null, 2)}
@@ -90,7 +90,9 @@ CUSTOMER REQUEST:
 
     return NextResponse.json({ recommendation: text });
   } catch (error: any) {
-    console.error("AI Sous-Chef Endpoint Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to process AI recommendation." }, { status: 500 });
+    console.error("CRITICAL AI Sous-Chef Endpoint Error Details:", error);
+    return NextResponse.json({ 
+      error: `AI Error: ${error.message || "Unknown error occurred"}. Ensure your Vercel GEMINI_API_KEY is set to a valid AI Studio key (starts with 'AIzaSy').` 
+    }, { status: 500 });
   }
 }

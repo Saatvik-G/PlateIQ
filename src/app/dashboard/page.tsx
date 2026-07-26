@@ -16,6 +16,13 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(val);
+  };
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [staffRecord, setStaffRecord] = useState<StaffMember | null>(null);
   const [loading, setLoading] = useState(true);
@@ -328,7 +335,7 @@ export default function DashboardPage() {
 
             <div className="bg-brand-dark border border-stone-850 p-4 rounded flex flex-col justify-between">
               <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">Total Sales</span>
-              <span className="text-xl font-extrabold text-brand-secondary mt-1">${todayRevenue.toFixed(2)}</span>
+              <span className="text-xl font-extrabold text-brand-secondary mt-1">{formatCurrency(todayRevenue)}</span>
             </div>
           </div>
 
@@ -393,7 +400,7 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="text-right">
                                   <span className="block font-bold text-stone-800">TABLE {order.tableId}</span>
-                                  <span className="block text-[8px] text-stone-500">Sub: ${order.subtotal.toFixed(2)}</span>
+                                  <span className="block text-[8px] text-stone-500">Sub: {formatCurrency(order.subtotal)}</span>
                                 </div>
                               </div>
 
@@ -402,7 +409,7 @@ export default function DashboardPage() {
                                 <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${statusColors[order.status] || "text-stone-600 border-stone-300"}`}>
                                   {order.status}
                                 </span>
-                                <span className="text-[11px] font-bold text-stone-900 font-mono">${order.totalAmount.toFixed(2)}</span>
+                                <span className="text-[11px] font-bold text-stone-900 font-mono">{formatCurrency(order.totalAmount)}</span>
                               </div>
 
                               {/* Roster of Items */}

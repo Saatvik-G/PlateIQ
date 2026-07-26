@@ -34,6 +34,14 @@ import { callAISousChef, generateRescueDescription } from "@/services/aiService"
 export default function GuestPage() {
   const router = useRouter();
   const [customerId, setCustomerId] = useState("");
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(val);
+  };
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [tables, setTables] = useState<RestaurantTable[]>([]);
@@ -208,8 +216,8 @@ export default function GuestPage() {
     try {
       const aiReply = await callAISousChef(userText, customerId);
       setChatMessages((prev) => [...prev, { sender: "ai", text: aiReply }]);
-    } catch (err) {
-      setChatMessages((prev) => [...prev, { sender: "ai", text: "Sorry, I ran into an error processing that. Please try again." }]);
+    } catch (err: any) {
+      setChatMessages((prev) => [...prev, { sender: "ai", text: err.message || "Sorry, I ran into an error processing that. Please try again." }]);
     } finally {
       setAiLoading(false);
     }
@@ -390,8 +398,8 @@ export default function GuestPage() {
                             <div className="flex justify-between items-start">
                               <h4 className="font-bold text-white text-sm">{item.name}</h4>
                               <div className="text-right">
-                                <span className="block text-brand-secondary font-bold text-sm">${discountedPrice.toFixed(2)}</span>
-                                <span className="block text-stone-500 text-[10px] line-through">${item.price.toFixed(2)}</span>
+                                <span className="block text-brand-secondary font-bold text-sm">{formatCurrency(discountedPrice)}</span>
+                                <span className="block text-stone-500 text-[10px] line-through">{formatCurrency(item.price)}</span>
                               </div>
                             </div>
                             <p className="text-[11px] text-stone-400 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
@@ -470,7 +478,7 @@ export default function GuestPage() {
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
                           <h4 className="font-bold text-white text-sm">{item.name}</h4>
-                          <span className="text-brand-secondary font-bold text-sm">${item.price.toFixed(2)}</span>
+                          <span className="text-brand-secondary font-bold text-sm">{formatCurrency(item.price)}</span>
                         </div>
                         <p className="text-[11px] text-stone-400 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
                       </div>
@@ -696,7 +704,7 @@ export default function GuestPage() {
                         {order.items.map((item, idx) => (
                           <li key={idx} className="flex justify-between">
                             <span>{item.quantity}x {item.name}</span>
-                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                            <span>{formatCurrency(item.price * item.quantity)}</span>
                           </li>
                         ))}
                       </ul>
@@ -799,7 +807,7 @@ export default function GuestPage() {
                       <div key={itemId} className="flex items-center justify-between pt-4 first:pt-0">
                         <div>
                           <h4 className="font-bold text-white text-xs">{item.name}</h4>
-                          <span className="text-[10px] text-brand-secondary font-mono">${itemPrice.toFixed(2)} each</span>
+                          <span className="text-[10px] text-brand-secondary font-mono">{formatCurrency(itemPrice)} each</span>
                         </div>
 
                         <div className="flex items-center gap-2.5">
@@ -830,15 +838,15 @@ export default function GuestPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs text-stone-400">
                     <span>Tax (8%)</span>
-                    <span>${(getCartTotal() * 0.08).toFixed(2)}</span>
+                    <span>{formatCurrency(getCartTotal() * 0.08)}</span>
                   </div>
                   <div className="flex justify-between text-xs text-stone-400">
                     <span>Service Charge (10%)</span>
-                    <span>${(getCartTotal() * 0.10).toFixed(2)}</span>
+                    <span>{formatCurrency(getCartTotal() * 0.10)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-white border-t border-dashed border-stone-800 pt-2">
                     <span>Total Amount</span>
-                    <span className="text-brand-secondary">${(getCartTotal() * 1.18).toFixed(2)}</span>
+                    <span className="text-brand-secondary">{formatCurrency(getCartTotal() * 1.18)}</span>
                   </div>
                 </div>
 
