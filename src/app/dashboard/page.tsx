@@ -82,9 +82,9 @@ export default function DashboardPage() {
     const unsubNotifications = subscribeToNotifications(setNotifications);
 
     // Fetch staff list for roster
-    const { db } = require("@/lib/firebase");
+    const { getDb } = require("@/lib/firebase");
     const { collection, getDocs } = require("firebase/firestore");
-    getDocs(collection(db, "staff")).then((snap: any) => {
+    getDocs(collection(getDb(), "staff")).then((snap: any) => {
       const roster: any[] = [];
       snap.forEach((doc: any) => {
         roster.push({ id: doc.id, ...doc.data() });
