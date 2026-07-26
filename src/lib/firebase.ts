@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth as fbGetAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,21 +11,36 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Validate environment variables
-const missingKeys = Object.entries(firebaseConfig)
-  .filter(([_, value]) => !value)
-  .map(([key]) => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, "_$1").toUpperCase()}`);
+let initializedApp: any = null;
+let initializedDb: Firestore | null = null;
+let initializedAuth: Auth | null = null;
 
-if (missingKeys.length > 0) {
-  throw new Error(
-    `CRITICAL: Missing required Firebase configuration environment variables:\n${missingKeys.join(
-      "\n"
-    )}\n\nPlease define these in your .env.local file.`
-  );
+function ensureFirebase() {
+  if (initializedApp) return;
+
+  const missingKeys = Object.entries(firebaseConfig)
+    .filter(([_, value]) => !value)
+    .map(([key]) => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, "_$1").toUpperCase()}`);
+
+  if (missingKeys.length > 0) {
+    throw new Error(
+      `CRITICAL: Missing required Firebase configuration environment variables:\n${missingKeys.join(
+        "\n"
+      )}\n\nPlease define these in your .env.local file.`
+    );
+  }
+
+  initializedApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  initializedDb = getFirestore(initializedApp);
+  initializedAuth = fbGetAuth(initializedApp);
 }
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const auth = getAuth(app);
+export function getDb(): Firestore {
+  ensureFirebase();
+  return initializedDb!;
+}
 
-export { app, db, auth };
+export function getAuth(): Auth {
+  ensureFirebase();
+  return initializedAuth!;
+}

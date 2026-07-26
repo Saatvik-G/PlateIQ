@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { getDb } from "@/lib/firebase";
 import { 
   doc, 
   setDoc, 
@@ -30,6 +30,8 @@ export async function submitFeedback(
   menuItemId: string,
   rating: "up" | "down"
 ): Promise<void> {
+  const db = getDb();
+  
   // 1a. Write to tasteFeedback collection
   const feedbackRef = collection(db, "tasteFeedback");
   await addDoc(feedbackRef, {
@@ -101,7 +103,7 @@ export async function submitFeedback(
 
 // 2. Fetch Customer Preferences (to display or feed into AI prompt)
 export async function getCustomerPreferences(customerId: string): Promise<CustomerPreferences | null> {
-  const docRef = doc(db, "customerPreferences", customerId);
+  const docRef = doc(getDb(), "customerPreferences", customerId);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     return docSnap.data() as CustomerPreferences;

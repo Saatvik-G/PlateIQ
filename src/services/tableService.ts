@@ -1,4 +1,4 @@
-import { db, auth } from "@/lib/firebase";
+import { getDb, getAuth } from "@/lib/firebase";
 import { 
   collection, 
   query, 
@@ -28,7 +28,7 @@ export interface Reservation {
 
 // 1. Subscribe to All Tables (for occupancy grids and order placement dropdowns)
 export function subscribeToTables(callback: (tables: RestaurantTable[]) => void): Unsubscribe {
-  const q = query(collection(db, "tables"), orderBy("tableNumber", "asc"));
+  const q = query(collection(getDb(), "tables"), orderBy("tableNumber", "asc"));
 
   return onSnapshot(q, (snapshot) => {
     const tables: RestaurantTable[] = [];
@@ -68,7 +68,7 @@ export async function reserveTable(
 
 // 3. Update Table Status (calls role-gated server API)
 export async function updateTableStatus(tableId: string, status: "free" | "occupied" | "reserved"): Promise<void> {
-  const currentUser = auth.currentUser;
+  const currentUser = getAuth().currentUser;
   if (!currentUser) {
     throw new Error("You must be logged in to update table status.");
   }
@@ -91,7 +91,7 @@ export async function updateTableStatus(tableId: string, status: "free" | "occup
 
 // 4. Subscribe to Reservations (for live dashboard booking list)
 export function subscribeToReservations(callback: (reservations: Reservation[]) => void): Unsubscribe {
-  const q = query(collection(db, "reservations"), orderBy("createdAt", "desc"));
+  const q = query(collection(getDb(), "reservations"), orderBy("createdAt", "desc"));
 
   return onSnapshot(q, (snapshot) => {
     const reservations: Reservation[] = [];

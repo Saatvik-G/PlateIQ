@@ -1,11 +1,10 @@
-import { db, auth } from "@/lib/firebase";
+import { getDb, getAuth } from "@/lib/firebase";
 import { 
   collection, 
   query, 
   where, 
   orderBy, 
   onSnapshot, 
-  DocumentData,
   Unsubscribe
 } from "firebase/firestore";
 
@@ -56,7 +55,7 @@ export async function placeOrder(
 
 // 2. Update Order Status via Server API (Enforces role-gated access check on backend)
 export async function updateOrderStatus(orderId: string, status: string): Promise<void> {
-  const currentUser = auth.currentUser;
+  const currentUser = getAuth().currentUser;
   if (!currentUser) {
     throw new Error("You must be logged in to update order status.");
   }
@@ -80,7 +79,7 @@ export async function updateOrderStatus(orderId: string, status: string): Promis
 // 3. Subscribe to All Orders (for Staff Dashboard)
 export function subscribeToAllOrders(callback: (orders: Order[]) => void): Unsubscribe {
   const q = query(
-    collection(db, "orders"),
+    collection(getDb(), "orders"),
     orderBy("createdAt", "desc")
   );
 
@@ -107,7 +106,7 @@ export function subscribeToCustomerOrders(
   callback: (orders: Order[]) => void
 ): Unsubscribe {
   const q = query(
-    collection(db, "orders"),
+    collection(getDb(), "orders"),
     where("customerId", "==", customerId),
     orderBy("createdAt", "desc")
   );

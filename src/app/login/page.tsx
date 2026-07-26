@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { loginWithPassword, sendPasswordlessLink, getStaffRecord, auth } from "@/services/authService";
+import { loginWithPassword, sendPasswordlessLink, getStaffRecord, subscribeToAuth } from "@/services/authService";
 import { Mail, Lock, Sparkles, RefreshCw, AlertCircle, CheckCircle, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   // If already logged in, redirect to dashboard
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = subscribeToAuth(async (user) => {
       if (user) {
         const staff = await getStaffRecord(user.uid);
         if (staff) {
@@ -85,7 +85,8 @@ export default function LoginPage() {
       let user;
       try {
         const { createUserWithEmailAndPassword } = await import("firebase/auth");
-        const cred = await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
+        const { getAuth } = await import("@/lib/firebase");
+        const cred = await createUserWithEmailAndPassword(getAuth(), demoEmail, demoPassword);
         user = cred.user;
       } catch (err: any) {
         if (err.code === "auth/email-already-in-use") {

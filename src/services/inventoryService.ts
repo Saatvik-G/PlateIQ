@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { getDb } from "@/lib/firebase";
 import { 
   collection, 
   query, 
@@ -32,7 +32,7 @@ export interface SystemNotification {
 // 1. Subscribe to Ingredients (for Dashboard and Customer menus)
 export function subscribeToIngredients(callback: (ingredients: Ingredient[]) => void): Unsubscribe {
   const q = query(
-    collection(db, "ingredients"),
+    collection(getDb(), "ingredients"),
     orderBy("name", "asc")
   );
 
@@ -55,7 +55,7 @@ export function subscribeToIngredients(callback: (ingredients: Ingredient[]) => 
 // 2. Subscribe to Notifications (for staff alerts panel)
 export function subscribeToNotifications(callback: (notifications: SystemNotification[]) => void): Unsubscribe {
   const q = query(
-    collection(db, "notifications"),
+    collection(getDb(), "notifications"),
     orderBy("createdAt", "desc")
   );
 
@@ -113,6 +113,6 @@ export async function updateIngredientSurplus(
 
 // 5. Mark Notification as Read
 export async function markNotificationRead(notificationId: string): Promise<void> {
-  const ref = doc(db, "notifications", notificationId);
+  const ref = doc(getDb(), "notifications", notificationId);
   await updateDoc(ref, { read: true });
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, getStaffRecord, logout, StaffMember } from "@/services/authService";
+import { getStaffRecord, logout, StaffMember, subscribeToAuth } from "@/services/authService";
 import { subscribeToAllOrders, updateOrderStatus, Order } from "@/services/orderService";
 import { subscribeToIngredients, restockIngredient, updateIngredientSurplus, subscribeToNotifications, markNotificationRead, Ingredient, SystemNotification } from "@/services/inventoryService";
 import { subscribeToTables, updateTableStatus, RestaurantTable } from "@/services/tableService";
@@ -39,7 +39,7 @@ export default function DashboardPage() {
 
   // Authentication check
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = subscribeToAuth(async (user) => {
       if (!user) {
         router.push("/login");
       } else {

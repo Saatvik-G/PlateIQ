@@ -1,4 +1,4 @@
-import { db, auth } from "@/lib/firebase";
+import { getDb, getAuth } from "@/lib/firebase";
 import { 
   collection, 
   query, 
@@ -26,7 +26,7 @@ export interface MenuItem {
 
 // 1. Subscribe to Menu Items (for live guest-facing menus and dashboard)
 export function subscribeToMenu(callback: (items: MenuItem[]) => void): Unsubscribe {
-  const q = query(collection(db, "menuItems"));
+  const q = query(collection(getDb(), "menuItems"));
 
   return onSnapshot(q, (snapshot) => {
     const items: MenuItem[] = [];
@@ -45,7 +45,7 @@ export function subscribeToMenu(callback: (items: MenuItem[]) => void): Unsubscr
 
 // 2. Staff Manual Override (forces status bypass on server)
 export async function overrideMenuAvailability(menuItemId: string, isAvailable: boolean): Promise<void> {
-  const currentUser = auth.currentUser;
+  const currentUser = getAuth().currentUser;
   if (!currentUser) {
     throw new Error("You must be logged in to override menu item availability.");
   }
