@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Leaf, ShoppingCart, Clock, Sparkles, X, ChevronRight, Send,
+  UtensilsCrossed, ShoppingCart, Clock, Sparkles, X, ChevronRight, Send,
   ThumbsUp, ThumbsDown, Check, RefreshCw, Trash2, ArrowRight
 } from "lucide-react";
 import {
@@ -287,7 +287,7 @@ export default function GuestPage() {
       <header className="sticky top-0 z-40 bg-brand-dark/95 border-b-2 border-brand-primary px-6 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-md">
-            <Leaf className="w-5 h-5 text-white" />
+            <UtensilsCrossed className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight font-display text-white flex items-center gap-1.5">
@@ -334,7 +334,7 @@ export default function GuestPage() {
             <div className="absolute top-0 left-0 w-1 h-full bg-brand-accent" />
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-brand-secondary text-[10px] font-bold uppercase tracking-wider font-mono">
-                <Leaf className="w-3.5 h-3.5" />
+                <UtensilsCrossed className="w-3.5 h-3.5" />
                 <span>Zero-Waste Operations</span>
               </div>
               <h2 className="text-xl font-bold font-display text-white">Every Gram Rescued</h2>
