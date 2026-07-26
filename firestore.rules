@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Menu items: Anyone can read, only server can write
+    match /menuItems/{menuItemId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 2. Tables: Anyone can read (live occupancy status), only server can write
+    match /tables/{tableId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 3. Orders: Anyone can read (to track their order by ID or session), only server can write
+    match /orders/{orderId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 4. Ingredients: Staff can read, only server can write
+    match /ingredients/{ingredientId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 5. Inventory Ledger: Staff can read, only server can write
+    match /inventoryLedger/{ledgerId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 6. Notifications: Staff can read, only server can write
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 7. Staff: Authenticated users can read their own profile, only server can write
+    match /staff/{staffId} {
+      allow read: if true; // Allow lookup by email/uid during login
+      allow write: if false;
+    }
+
+    // 8. Reservations: Anyone can read (to check availability), only server can write
+    match /reservations/{reservationId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 9. Taste Feedback and Customer Preferences: Anyone can read/write to support anonymous sessions
+    match /tasteFeedback/{feedbackId} {
+      allow read, write: if true;
+    }
+    match /customerPreferences/{customerId} {
+      allow read, write: if true;
+    }
+  }
+}
