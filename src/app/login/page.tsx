@@ -126,7 +126,7 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold tracking-tight font-display text-white uppercase">
             Authenticate Terminal
           </h1>
-          <p className="mt-2 text-xs text-stone-400 font-mono">
+          <p className="mt-2 text-xs text-stone-300 font-mono">
             Sign in to access your role-based restaurant dashboard.
           </p>
         </div>
@@ -228,7 +228,7 @@ export default function LoginPage() {
 
         {/* Seeding & One-Click Demo Setup */}
         <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-2 text-[10px] text-stone-500 uppercase tracking-wider font-bold font-mono">
+          <div className="flex items-center justify-center gap-2 text-[10px] text-stone-400 uppercase tracking-wider font-bold font-mono">
             <span className="h-px w-8 bg-stone-800" />
             <span>Hackathon Reviewer Tool</span>
             <span className="h-px w-8 bg-stone-800" />
@@ -251,7 +251,7 @@ export default function LoginPage() {
               </>
             )}
           </button>
-          <p className="text-[9px] text-stone-500 font-mono italic max-w-xs mx-auto leading-relaxed">
+          <p className="text-[9px] text-stone-400 font-mono italic max-w-xs mx-auto leading-relaxed">
             Verifies menu database seeding, registers standard staff credentials, and logs in as administrator.
           </p>
         </div>

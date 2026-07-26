@@ -366,61 +366,143 @@ export default function GuestPage() {
             </div>
 
             {/* Chef's Rescue Menu Section (surplus items) */}
-            {rescueMenuItems.length > 0 && (
-              <div className="mb-10">
-                <div className="flex items-center justify-between border-b border-stone-800 pb-2.5 mb-6">
-                  <h3 className="text-lg font-bold font-display text-brand-secondary uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4" />
-                    Chef's Rescue Specials
-                  </h3>
-                  <span className="text-[9px] uppercase font-mono bg-brand-primary/20 text-brand-primary px-2 py-0.5 rounded border border-brand-primary/30">
-                    15% Off Applied
-                  </span>
-                </div>
+            {menuItems.length === 0 ? (
+              <div className="py-20 text-center space-y-4">
+                <RefreshCw className="w-8 h-8 mx-auto text-brand-secondary animate-spin" />
+                <p className="text-xs text-stone-400 font-mono italic">Polishing the chalkboard and preparing fresh ingredients...</p>
+              </div>
+            ) : (
+              <>
+                {rescueMenuItems.length > 0 && (
+                  <div className="mb-10">
+                    <div className="flex items-center justify-between border-b border-stone-800 pb-2.5 mb-6">
+                      <h3 className="text-lg font-bold font-display text-brand-secondary uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4" />
+                        Chef's Rescue Specials
+                      </h3>
+                      <span className="text-[9px] uppercase font-mono bg-brand-primary/20 text-brand-primary px-2 py-0.5 rounded border border-brand-primary/30">
+                        15% Off Applied
+                      </span>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {rescueMenuItems.map((item) => {
-                    const discountedPrice = item.price * 0.85;
-                    const surplusIngredients = getRescueStatus(item);
-                    
-                    return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {rescueMenuItems.map((item) => {
+                        const discountedPrice = item.price * 0.85;
+                        const surplusIngredients = getRescueStatus(item);
+                        
+                        return (
+                          <div key={item.id} className="border border-stone-800 bg-[#262322] p-4 rounded-lg flex flex-col justify-between space-y-4">
+                            <div className="flex gap-4">
+                              <div className="w-20 h-20 shrink-0 bg-stone-850 rounded overflow-hidden relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                <div className="absolute top-1 left-1 bg-brand-primary text-white font-bold text-[8px] px-1.5 py-0.5 rounded uppercase">
+                                  Rescue
+                                </div>
+                              </div>
+
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start">
+                                  <h4 className="font-bold text-white text-sm">{item.name}</h4>
+                                  <div className="text-right">
+                                    <span className="block text-brand-secondary font-bold text-sm">{formatCurrency(discountedPrice)}</span>
+                                    <span className="block text-stone-500 text-[10px] line-through">{formatCurrency(item.price)}</span>
+                                  </div>
+                                </div>
+                                <p className="text-[11px] text-stone-400 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
+                              </div>
+                            </div>
+
+                            {/* AI Sustainability Pitch */}
+                            <div className="bg-stone-900/80 border border-stone-800 rounded p-2.5 flex gap-2 items-start">
+                              <Sparkles className="w-3.5 h-3.5 text-brand-secondary shrink-0 mt-0.5" />
+                              <p className="text-[10px] text-stone-300 italic leading-normal">
+                                {loadingRescue[item.id] ? "Chef is writing pitch..." : rescueDescriptions[item.id] || "Calculating dynamic impact..."}
+                              </p>
+                            </div>
+
+                            {renderRecipeStockBars(item.recipeMap)}
+
+                            <div className="flex justify-between items-center pt-2">
+                              <span className="text-[8px] bg-stone-900 border border-stone-800 px-2 py-0.5 rounded text-stone-400 uppercase font-mono">
+                                Rescues: {surplusIngredients.join(", ")}
+                              </span>
+                              
+                              <button
+                                onClick={() => addToCart(item.id)}
+                                disabled={!item.isAvailable}
+                                className="bg-brand-primary hover:bg-[#a1402a] disabled:bg-stone-800 disabled:text-stone-600 text-white font-semibold text-xs py-1.5 px-3.5 rounded cursor-pointer disabled:cursor-not-allowed transition-all"
+                              >
+                                {item.isAvailable ? "Add to Order" : "Sold Out"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Regular Menu Section */}
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-800 pb-3 mb-6">
+                    <h3 className="text-lg font-bold font-display text-white uppercase tracking-wider">A La Carte</h3>
+
+                    {/* Categories */}
+                    <div className="flex flex-wrap gap-1">
+                      {categories.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`px-3 py-1 rounded text-[10px] uppercase font-bold tracking-wider font-mono border transition-all cursor-pointer ${
+                            selectedCategory === cat
+                              ? "bg-brand-primary border-brand-primary text-white"
+                              : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredMenuItems.map((item) => (
                       <div key={item.id} className="border border-stone-800 bg-[#262322] p-4 rounded-lg flex flex-col justify-between space-y-4">
                         <div className="flex gap-4">
                           <div className="w-20 h-20 shrink-0 bg-stone-850 rounded overflow-hidden relative">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                            <div className="absolute top-1 left-1 bg-brand-primary text-white font-bold text-[8px] px-1.5 py-0.5 rounded uppercase">
-                              Rescue
-                            </div>
+                            {!item.isAvailable && (
+                              <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
+                                <span className="bg-brand-danger text-white font-bold text-[8px] uppercase tracking-wider py-0.5 px-1.5 rounded">
+                                  Sold Out
+                                </span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
                               <h4 className="font-bold text-white text-sm">{item.name}</h4>
-                              <div className="text-right">
-                                <span className="block text-brand-secondary font-bold text-sm">{formatCurrency(discountedPrice)}</span>
-                                <span className="block text-stone-500 text-[10px] line-through">{formatCurrency(item.price)}</span>
-                              </div>
+                              <span className="text-brand-secondary font-bold text-sm">{formatCurrency(item.price)}</span>
                             </div>
                             <p className="text-[11px] text-stone-400 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
                           </div>
                         </div>
 
-                        {/* AI Sustainability Pitch */}
-                        <div className="bg-stone-900/80 border border-stone-800 rounded p-2.5 flex gap-2 items-start">
-                          <Sparkles className="w-3.5 h-3.5 text-brand-secondary shrink-0 mt-0.5" />
-                          <p className="text-[10px] text-stone-300 italic leading-normal">
-                            {loadingRescue[item.id] ? "Chef is writing pitch..." : rescueDescriptions[item.id] || "Calculating dynamic impact..."}
-                          </p>
-                        </div>
-
                         {renderRecipeStockBars(item.recipeMap)}
 
                         <div className="flex justify-between items-center pt-2">
-                          <span className="text-[8px] bg-stone-900 border border-stone-800 px-2 py-0.5 rounded text-stone-400 uppercase font-mono">
-                            Rescues: {surplusIngredients.join(", ")}
+                          <span className={`text-[8px] font-mono uppercase tracking-wider flex items-center gap-1 ${
+                            item.isAvailable ? "text-brand-secondary" : "text-brand-danger"
+                          }`}>
+                            <span className={`w-1 h-1 rounded-full ${
+                              item.isAvailable ? "bg-brand-secondary" : "bg-brand-danger"
+                            }`} />
+                            {item.isAvailable ? "Available" : "Stock Empty"}
                           </span>
-                          
+
                           <button
                             onClick={() => addToCart(item.id)}
                             disabled={!item.isAvailable}
@@ -430,84 +512,11 @@ export default function GuestPage() {
                           </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Regular Menu Section */}
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-800 pb-3 mb-6">
-                <h3 className="text-lg font-bold font-display text-white uppercase tracking-wider">A La Carte</h3>
-
-                {/* Categories */}
-                <div className="flex flex-wrap gap-1">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1 rounded text-[10px] uppercase font-bold tracking-wider font-mono border transition-all cursor-pointer ${
-                        selectedCategory === cat
-                          ? "bg-brand-primary border-brand-primary text-white"
-                          : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredMenuItems.map((item) => (
-                  <div key={item.id} className="border border-stone-800 bg-[#262322] p-4 rounded-lg flex flex-col justify-between space-y-4">
-                    <div className="flex gap-4">
-                      <div className="w-20 h-20 shrink-0 bg-stone-850 rounded overflow-hidden relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                        {!item.isAvailable && (
-                          <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
-                            <span className="bg-brand-danger text-white font-bold text-[8px] uppercase tracking-wider py-0.5 px-1.5 rounded">
-                              Sold Out
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold text-white text-sm">{item.name}</h4>
-                          <span className="text-brand-secondary font-bold text-sm">{formatCurrency(item.price)}</span>
-                        </div>
-                        <p className="text-[11px] text-stone-400 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
-                      </div>
-                    </div>
-
-                    {renderRecipeStockBars(item.recipeMap)}
-
-                    <div className="flex justify-between items-center pt-2">
-                      <span className={`text-[8px] font-mono uppercase tracking-wider flex items-center gap-1 ${
-                        item.isAvailable ? "text-brand-secondary" : "text-brand-danger"
-                      }`}>
-                        <span className={`w-1 h-1 rounded-full ${
-                          item.isAvailable ? "bg-brand-secondary" : "bg-brand-danger"
-                        }`} />
-                        {item.isAvailable ? "Available" : "Stock Empty"}
-                      </span>
-
-                      <button
-                        onClick={() => addToCart(item.id)}
-                        disabled={!item.isAvailable}
-                        className="bg-brand-primary hover:bg-[#a1402a] disabled:bg-stone-800 disabled:text-stone-600 text-white font-semibold text-xs py-1.5 px-3.5 rounded cursor-pointer disabled:cursor-not-allowed transition-all"
-                      >
-                        {item.isAvailable ? "Add to Order" : "Sold Out"}
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              </>
+            )}
 
           </div>
         </div>

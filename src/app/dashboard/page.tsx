@@ -245,7 +245,7 @@ export default function DashboardPage() {
                 <ShieldCheck className="w-3.5 h-3.5" /> {staffRecord.role}
               </span>
             </h1>
-            <p className="text-[10px] text-stone-400 font-mono">Operator: {staffRecord.name} ({staffRecord.email})</p>
+            <p className="text-[10px] text-stone-300 font-mono">Operator: <span className="font-bold text-brand-secondary">{staffRecord.name}</span> ({staffRecord.email})</p>
           </div>
         </div>
 
@@ -697,7 +697,7 @@ export default function DashboardPage() {
                     {staffRoster.map((rosterItem) => (
                       <tr key={rosterItem.id}>
                         <td className="px-6 py-4 font-sans font-bold text-stone-900">{rosterItem.name}</td>
-                        <td className="px-6 py-4">{rosterItem.email}</td>
+                        <td className="px-6 py-4 text-stone-850 font-medium">{rosterItem.email}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-wider ${
                             rosterItem.role === "admin" ? "bg-brand-primary/10 text-brand-primary border-brand-primary/30" :
@@ -707,7 +707,7 @@ export default function DashboardPage() {
                             {rosterItem.role}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-[10px] text-stone-500">{rosterItem.id}</td>
+                        <td className="px-6 py-4 text-[10px] text-stone-700 font-semibold">{rosterItem.id}</td>
                       </tr>
                     ))}
                   </tbody>
