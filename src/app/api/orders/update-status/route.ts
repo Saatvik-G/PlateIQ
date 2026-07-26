@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth } from "@/lib/firebaseAdmin";
+import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
 
     await orderRef.update({
       status,
-      updatedAt: adminFirestoreTimestamp(),
+      updatedAt: Timestamp.now(),
     });
 
     return NextResponse.json({ success: true, orderId, newStatus: status });
@@ -72,10 +73,4 @@ export async function POST(request: Request) {
     console.error("Update Status Error:", error);
     return NextResponse.json({ error: error.message || "Failed to update order status." }, { status: 500 });
   }
-}
-
-function adminFirestoreTimestamp() {
-  // Return firebase admin timestamp
-  const admin = require("firebase-admin");
-  return admin.firestore.Timestamp.now();
 }

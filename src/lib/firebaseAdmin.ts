@@ -1,19 +1,11 @@
-import * as admin from "firebase-admin";
-
-const projectId = process.env.FIREBASE_PROJECT_ID;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-if (!projectId || !clientEmail || !privateKey) {
-  // We check if it is running in a server context (e.g. build time vs run time API call)
-  // To avoid breaking static export/build if env is not provided at build time,
-  // we check if we are in an API execution.
-  // But since the user wants startup check, we can throw a runtime error when these are accessed.
-}
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
 export function getAdminApp() {
-  if (admin.apps.length > 0) {
-    return admin.apps[0]!;
+  const apps = getApps();
+  if (apps.length > 0) {
+    return apps[0]!;
   }
 
   const pKey = process.env.FIREBASE_PRIVATE_KEY;
@@ -26,8 +18,8 @@ export function getAdminApp() {
     );
   }
 
-  return admin.initializeApp({
-    credential: admin.credential.cert({
+  return initializeApp({
+    credential: cert({
       projectId: pId,
       clientEmail: cEmail,
       privateKey: pKey.replace(/\\n/g, "\n"),
@@ -37,10 +29,10 @@ export function getAdminApp() {
 
 export function getAdminDb() {
   getAdminApp();
-  return admin.firestore();
+  return getFirestore();
 }
 
 export function getAdminAuth() {
   getAdminApp();
-  return admin.auth();
+  return getAuth();
 }

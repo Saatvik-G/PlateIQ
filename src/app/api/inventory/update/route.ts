@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebaseAdmin";
-import * as admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const db = getAdminDb();
     const restaurantId = "default-restaurant";
 
-    const result = await db.runTransaction(async (transaction) => {
+    const result = await db.runTransaction(async (transaction: any) => {
       const ingRef = db.collection("ingredients").doc(ingredientId);
       const ingDoc = await transaction.get(ingRef);
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
           ingredientId,
           changeQty: restockQty,
           reason: restockQty > 0 ? "restock" : "waste",
-          createdAt: admin.firestore.Timestamp.now(),
+          createdAt: Timestamp.now(),
         });
       }
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       
       if (expiryDate !== undefined) {
         updates.expiryDate = expiryDate
-          ? admin.firestore.Timestamp.fromDate(new Date(expiryDate))
+          ? Timestamp.fromDate(new Date(expiryDate))
           : null;
       }
 
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         );
 
         const ingredientsMap = new Map<string, any>();
-        ingredientsSnap.forEach((doc) => {
+        ingredientsSnap.forEach((doc: any) => {
           ingredientsMap.set(doc.id, { id: doc.id, ...doc.data() });
         });
         
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
           localIng.currentStock = newStock;
         }
 
-        menuSnap.forEach((menuItemDoc) => {
+        menuSnap.forEach((menuItemDoc: any) => {
           const menuItem = menuItemDoc.data();
           const recipeMap = menuItem.recipeMap || [];
           let isNowAvailable = true;

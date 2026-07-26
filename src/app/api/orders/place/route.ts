@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebaseAdmin";
-import * as admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const db = getAdminDb();
     const restaurantId = "default-restaurant";
 
-    const result = await db.runTransaction(async (transaction) => {
+    const result = await db.runTransaction(async (transaction: any) => {
       // 1. Get restaurant rates (tax & service charge)
       const restRef = db.collection("restaurants").doc(restaurantId);
       const restDoc = await transaction.get(restRef);
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         // Auto-create default restaurant for hackathon convenience
         transaction.set(restRef, {
           name: "PlateIQ Bistro",
-          createdAt: admin.firestore.Timestamp.now(),
+          createdAt: Timestamp.now(),
           taxRate,
           serviceChargeRate,
         });
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         db.collection("menuItems").where("restaurantId", "==", restaurantId)
       );
       const menuItemsMap = new Map<string, any>();
-      menuSnap.forEach((doc) => {
+      menuSnap.forEach((doc: any) => {
         menuItemsMap.set(doc.id, { id: doc.id, ...doc.data() });
       });
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         db.collection("ingredients").where("restaurantId", "==", restaurantId)
       );
       const ingredientsMap = new Map<string, any>();
-      ingSnap.forEach((doc) => {
+      ingSnap.forEach((doc: any) => {
         ingredientsMap.set(doc.id, { id: doc.id, ...doc.data() });
       });
 
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         totalRecipeSteps += (menuItem?.recipeMap?.length || 0) * item.quantity;
       }
       const prepMinutes = 5 + totalRecipeSteps + activeOrdersCount * 2;
-      const estimatedReadyAt = admin.firestore.Timestamp.fromDate(
+      const estimatedReadyAt = Timestamp.fromDate(
         new Date(Date.now() + prepMinutes * 60 * 1000)
       );
 
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
           ingredientId: update.ref.id,
           changeQty,
           reason: "order_deduction",
-          createdAt: admin.firestore.Timestamp.now(),
+          createdAt: Timestamp.now(),
         });
 
         // Check if stock crossed below lowStockThreshold
@@ -160,14 +160,14 @@ export async function POST(request: Request) {
             restaurantId,
             type: "low_stock",
             message: `Ingredient alert: "${update.name}" has crossed below its threshold. Current stock: ${update.newStock.toFixed(1)} ${update.unit}.`,
-            createdAt: admin.firestore.Timestamp.now(),
+            createdAt: Timestamp.now(),
             read: false,
           });
         }
       }
 
       // 7. Re-calculate availability for the ENTIRE restaurant's menu using updated stocks
-      menuItemsMap.forEach((menuItem) => {
+      menuItemsMap.forEach((menuItem: any) => {
         let isNowAvailable = true;
 
         const recipeMap = menuItem.recipeMap || [];
@@ -207,7 +207,7 @@ export async function POST(request: Request) {
         tableId: tableId || "walk-in",
         customerId: customerId || "anonymous",
         status: "placed",
-        createdAt: admin.firestore.Timestamp.now(),
+        createdAt: Timestamp.now(),
         estimatedReadyAt,
         taxRate,
         serviceChargeRate,

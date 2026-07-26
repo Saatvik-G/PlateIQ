@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { getCustomerSessionId } from "@/lib/session";
 import { subscribeToMenu, MenuItem } from "@/services/menuService";
 import { subscribeToIngredients, Ingredient } from "@/services/inventoryService";
-import { subscribeToTables, RestaurantTable } from "@/services/tableService";
+import { subscribeToTables, RestaurantTable, reserveTable } from "@/services/tableService";
 import { placeOrder, subscribeToCustomerOrders, Order } from "@/services/orderService";
 import { submitFeedback, getCustomerPreferences, CustomerPreferences } from "@/services/feedbackService";
 import { callAISousChef, generateRescueDescription } from "@/services/aiService";
 import { 
   Sparkles, Leaf, ShoppingCart, Clock, Check, ThumbsUp, ThumbsDown, 
-  Send, ChevronRight, X, AlertTriangle, ArrowRight, ClipboardList, Info
+  Send, ChevronRight, X, AlertTriangle, ArrowRight, ClipboardList, Info, RefreshCw
 } from "lucide-react";
 
 export default function CustomerPage() {
@@ -495,8 +495,8 @@ export default function CustomerPage() {
                         { key: "served", label: "Served" },
                         { key: "billed", label: "Billed" },
                       ].map((step, idx) => {
-                        const statusWeights = { placed: 1, preparing: 2, ready: 3, served: 4, billed: 5 };
-                        const isActive = statusWeights[order.status] >= statusWeights[step.key as any];
+                        const statusWeights: { [key: string]: number } = { placed: 1, preparing: 2, ready: 3, served: 4, billed: 5 };
+                        const isActive = statusWeights[order.status] >= statusWeights[step.key];
                         const isCurrent = order.status === step.key;
 
                         return (

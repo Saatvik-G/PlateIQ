@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebaseAdmin";
-import * as admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid party size." }, { status: 400 });
     }
 
-    const result = await db.runTransaction(async (transaction) => {
+    const result = await db.runTransaction(async (transaction: any) => {
       // 1. Fetch all tables for this restaurant
       const tablesSnap = await transaction.get(
         db.collection("tables").where("restaurantId", "==", restaurantId)
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
           tables.push({ id: newRef.id, ...tblData });
         }
       } else {
-        tablesSnap.forEach((doc) => {
+        tablesSnap.forEach((doc: any) => {
           tables.push({ id: doc.id, ...doc.data() });
         });
       }
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       );
       
       const reservedTableIds = new Set<string>();
-      reservationsSnap.forEach((doc) => {
+      reservationsSnap.forEach((doc: any) => {
         const data = doc.data();
         if (data.tableId) {
           reservedTableIds.add(data.tableId);
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
         partySize: size,
         timeSlot,
         status: "confirmed",
-        createdAt: admin.firestore.Timestamp.now(),
+        createdAt: Timestamp.now(),
       };
       transaction.set(reservationRef, reservationData);
 
@@ -116,9 +116,6 @@ export async function POST(request: Request) {
         const tableRef = db.collection("tables").doc(assignedTable.id);
         transaction.update(tableRef, { status: "occupied" });
         assignedTable.status = "occupied";
-      } else if (timeSlot.toLowerCase().includes("today")) {
-        // Let's say if it's for today's general reservations, we can mark table reserved if needed,
-        // but typically status is changed at check-in. Let's just leave status for now unless it's immediate.
       }
 
       return {

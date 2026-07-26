@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       .get();
 
     const availableItems: any[] = [];
-    menuSnap.forEach((doc) => {
+    menuSnap.forEach((doc: any) => {
       const data = doc.data();
       availableItems.push({
         id: doc.id,

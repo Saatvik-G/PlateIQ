@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebaseAdmin";
-import * as admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       name: "PlateIQ Bistro",
       taxRate: 0.08,
       serviceChargeRate: 0.10,
-      createdAt: admin.firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
     });
 
     // 2. Create Ingredients
