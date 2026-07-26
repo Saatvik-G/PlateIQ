@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   UtensilsCrossed, ShoppingCart, Clock, Sparkles, X, ChevronRight, Send,
-  ThumbsUp, ThumbsDown, Check, RefreshCw, Trash2, ArrowRight
+  ThumbsUp, ThumbsDown, Check, RefreshCw, Trash2, ArrowRight, Calendar
 } from "lucide-react";
 import {
   subscribeToMenu,
@@ -63,6 +63,14 @@ export default function GuestPage() {
     { sender: "ai", text: "Hello! I am your AI Sous-Chef. Ask me anything about the menu, dietary options, or what matches your taste!" }
   ]);
   const [aiLoading, setAiLoading] = useState(false);
+
+  // Table Booking state (Task 4 — Smart Optimizer flow)
+  const [bookingName, setBookingName] = useState("");
+  const [bookingParty, setBookingParty] = useState("2");
+  const [bookingSlot, setBookingSlot] = useState("now");
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingResult, setBookingResult] = useState<{ tableNumber: number; tableId: string } | null>(null);
+  const [bookingError, setBookingError] = useState("");
 
   // Rescue Menu state
   const [rescueDescriptions, setRescueDescriptions] = useState<{ [menuItemId: string]: string }>({});
@@ -234,6 +242,29 @@ export default function GuestPage() {
     }
   };
 
+  // Smart Table Booking via optimizer (Task 4)
+  const handleBookTable = async () => {
+    if (!bookingName.trim()) { setBookingError("Please enter your name."); return; }
+    setBookingError("");
+    setBookingLoading(true);
+    setBookingResult(null);
+    try {
+      const res = await fetch("/api/tables/reserve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerName: bookingName.trim(), partySize: bookingParty, timeSlot: bookingSlot }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Booking failed.");
+      setBookingResult({ tableNumber: data.table.tableNumber, tableId: data.table.id });
+      setSelectedTable(String(data.table.tableNumber));
+    } catch (err: any) {
+      setBookingError(err.message || "Could not assign a table. Please try again.");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
   // Categories
   const categories = ["All", ...Array.from(new Set(menuItems.map((item) => item.category)))];
 
@@ -322,6 +353,85 @@ export default function GuestPage() {
           </button>
         </div>
       </header>
+
+      {/* ── SMART TABLE BOOKING FORM (Task 4) ─────────────── */}
+      <div className="max-w-7xl mx-auto w-full px-6 pt-6">
+        <div className="bg-brand-dark border border-stone-700 rounded-xl p-5 shadow-md">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-4 h-4 text-brand-secondary" />
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider font-display">Reserve Your Table</h2>
+            <span className="ml-auto text-[9px] font-mono text-brand-secondary border border-brand-secondary/30 px-2 py-0.5 rounded bg-brand-secondary/10 uppercase">Smart Optimizer</span>
+          </div>
+
+          {bookingResult ? (
+            <div className="flex items-center justify-between bg-brand-secondary/10 border border-brand-secondary/30 rounded-lg p-4">
+              <div>
+                <p className="text-brand-secondary font-bold text-sm">✓ Table {bookingResult.tableNumber} Assigned!</p>
+                <p className="text-stone-400 text-xs mt-0.5">Your table is reserved. Add items to your cart to place your order.</p>
+              </div>
+              <button
+                onClick={() => { setBookingResult(null); setBookingName(""); }}
+                className="text-[10px] text-stone-400 hover:text-white border border-stone-700 px-3 py-1.5 rounded cursor-pointer transition-all"
+              >
+                Book Again
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">Your Name</label>
+                <input
+                  type="text"
+                  value={bookingName}
+                  onChange={(e) => setBookingName(e.target.value)}
+                  placeholder="e.g. Rahul Sharma"
+                  className="w-full bg-stone-900 border border-stone-700 rounded p-2 text-xs text-white placeholder:text-stone-600 focus:outline-none focus:border-brand-secondary"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">Party Size</label>
+                <select
+                  value={bookingParty}
+                  onChange={(e) => setBookingParty(e.target.value)}
+                  className="w-full bg-stone-900 border border-stone-700 rounded p-2 text-xs text-white"
+                >
+                  {[1,2,3,4,5,6,7,8].map(n => (
+                    <option key={n} value={n}>{n} {n === 1 ? "guest" : "guests"}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">Time Slot</label>
+                <select
+                  value={bookingSlot}
+                  onChange={(e) => setBookingSlot(e.target.value)}
+                  className="w-full bg-stone-900 border border-stone-700 rounded p-2 text-xs text-white"
+                >
+                  <option value="now">Right Now (Walk-in)</option>
+                  <option value="12:00">12:00 PM</option>
+                  <option value="13:00">1:00 PM</option>
+                  <option value="14:00">2:00 PM</option>
+                  <option value="19:00">7:00 PM</option>
+                  <option value="20:00">8:00 PM</option>
+                  <option value="21:00">9:00 PM</option>
+                </select>
+              </div>
+              <button
+                onClick={handleBookTable}
+                disabled={bookingLoading}
+                className="bg-brand-secondary hover:bg-[#4a7c59] disabled:bg-stone-700 text-white font-bold py-2 px-4 rounded text-xs transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              >
+                {bookingLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                {bookingLoading ? "Finding best table..." : "Check & Assign Table"}
+              </button>
+            </div>
+          )}
+
+          {bookingError && (
+            <p className="mt-3 text-[10px] text-brand-primary bg-brand-primary/10 border border-brand-primary/20 p-2 rounded">{bookingError}</p>
+          )}
+        </div>
+      </div>
 
       {/* Main Body Grid */}
       <div className="max-w-7xl mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">

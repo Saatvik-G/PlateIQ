@@ -46,6 +46,8 @@ export default function DashboardPage() {
   const [restockValues, setRestockValues] = useState<{ [ingId: string]: string }>({});
   // Expiry date selector state
   const [expiryValues, setExpiryValues] = useState<{ [ingId: string]: string }>({});
+  // Bill modal state
+  const [billOrder, setBillOrder] = useState<Order | null>(null);
 
   // Authentication check
   useEffect(() => {
@@ -114,14 +116,19 @@ export default function DashboardPage() {
   // Order State Transition (placed -> preparing -> ready -> served -> billed)
   const handleTransitionOrder = async (orderId: string, currentStatus: string) => {
     setStatusMessage(null);
+
+    // For served -> billed, show bill modal first
+    if (currentStatus === "served") {
+      const order = orders.find(o => o.id === orderId);
+      if (order) { setBillOrder(order); return; }
+    }
+
     setActionLoading(orderId);
-    
     let nextStatus = "";
     if (currentStatus === "placed") nextStatus = "preparing";
     else if (currentStatus === "preparing") nextStatus = "ready";
     else if (currentStatus === "ready") nextStatus = "served";
-    else if (currentStatus === "served") nextStatus = "billed";
-    else return; // already completed
+    else return;
 
     try {
       await updateOrderStatus(orderId, nextStatus);
@@ -297,6 +304,17 @@ export default function DashboardPage() {
 
         {/* Dashboard Content area */}
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
+
+          {/* ROLE GATE: block tab content if role is not permitted */}
+          {((activeTab === "staff" || activeTab === "analytics") && !isAdmin) ||
+           (activeTab === "inventory" && !isAdmin && !isKitchen) ||
+           (activeTab === "tables" && !isAdmin && !isWaiter) ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 border border-brand-danger/20 rounded bg-brand-danger/5">
+              <ShieldCheck className="w-12 h-12 text-brand-danger opacity-60" />
+              <p className="text-brand-danger font-bold text-sm uppercase tracking-wider">Access Denied — 403 Forbidden</p>
+              <p className="text-stone-500 text-xs">Your role <span className="font-mono font-bold text-stone-300">{staffRecord.role}</span> does not have permission to view this section.</p>
+            </div>
+          ) : null}
           
           {/* Status Message */}
           {statusMessage && (
@@ -778,6 +796,79 @@ export default function DashboardPage() {
 
         </main>
       </div>
+
+      {/* ── BILL MODAL (Task 3) ───────────────────────────── */}
+      {billOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-[#fcfaf7] rounded-lg shadow-2xl w-full max-w-sm border border-stone-300 overflow-hidden">
+            {/* Header */}
+            <div className="bg-brand-primary px-5 py-4 text-white">
+              <p className="text-xs font-mono uppercase tracking-widest opacity-70">PlateIQ Bistro</p>
+              <h2 className="text-lg font-extrabold font-display tracking-wide mt-0.5">Final Bill</h2>
+              <p className="text-xs opacity-70 font-mono">Table {billOrder.tableId} · Ticket #{billOrder.id.slice(-4).toUpperCase()}</p>
+            </div>
+
+            {/* Items */}
+            <div className="px-5 py-4 space-y-2 border-b border-dashed border-stone-300">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-stone-500 font-mono mb-2">Items Ordered</p>
+              {billOrder.items.map((item: any, idx: number) => (
+                <div key={idx} className="flex justify-between text-xs text-stone-800">
+                  <span>{item.name} <span className="text-stone-400">×{item.quantity}</span></span>
+                  <span className="font-mono font-semibold">{formatCurrency(item.price * item.quantity)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Totals — pulled from server-computed values, never recalculated */}
+            <div className="px-5 py-4 space-y-1.5 border-b border-dashed border-stone-300">
+              <div className="flex justify-between text-xs text-stone-600">
+                <span>Subtotal</span>
+                <span className="font-mono">{formatCurrency(billOrder.subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-stone-600">
+                <span>Tax ({Math.round(billOrder.taxRate * 100)}%)</span>
+                <span className="font-mono">{formatCurrency(billOrder.subtotal * billOrder.taxRate)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-stone-600">
+                <span>Service Charge ({Math.round(billOrder.serviceChargeRate * 100)}%)</span>
+                <span className="font-mono">{formatCurrency(billOrder.subtotal * billOrder.serviceChargeRate)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-extrabold text-stone-900 pt-1 border-t border-stone-300 mt-1">
+                <span>TOTAL</span>
+                <span className="font-mono text-brand-primary">{formatCurrency(billOrder.totalAmount)}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-5 py-4 flex gap-3">
+              <button
+                onClick={() => setBillOrder(null)}
+                className="flex-1 py-2 text-xs font-semibold border border-stone-300 rounded text-stone-600 hover:bg-stone-100 cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setActionLoading(billOrder.id);
+                  setBillOrder(null);
+                  try {
+                    await updateOrderStatus(billOrder.id, "billed");
+                    setStatusMessage({ type: "success", text: `Order #${billOrder.id.slice(-4).toUpperCase()} billed and closed!` });
+                  } catch (err: any) {
+                    setStatusMessage({ type: "error", text: err.message || "Failed to close bill." });
+                  } finally {
+                    setActionLoading(null);
+                  }
+                }}
+                className="flex-1 py-2 text-xs font-bold bg-brand-primary text-white rounded hover:bg-[#a1402a] cursor-pointer transition-all"
+              >
+                Confirm &amp; Close Bill
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+
 }
