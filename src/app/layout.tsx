@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Arvo, Cabin } from "next/font/google";
+import { ensureSeeded } from "@/lib/startupSeed";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const arvo = Arvo({
+  weight: ["400", "700"],
+  variable: "--font-arvo",
   subsets: ["latin"],
   display: "swap",
 });
 
-const outfit = Outfit({
-  variable: "--font-outfit",
+const cabin = Cabin({
+  variable: "--font-cabin",
   subsets: ["latin"],
   display: "swap",
 });
@@ -20,19 +22,24 @@ export const metadata: Metadata = {
   viewport: "width=device-width, initial-scale=1, maximum-scale=1",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
   header,
 }: Readonly<{
   children: React.ReactNode;
   header?: React.ReactNode;
 }>) {
+  // Trigger idempotent database seed check once on app start (layout load)
+  await ensureSeeded().catch((err) => {
+    console.error("Startup seeding failed:", err);
+  });
+
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${outfit.variable} h-full antialiased`}
+      className={`${arvo.variable} ${cabin.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-brand-deep text-gray-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+      <body className="min-h-full bg-brand-deep text-parchment-dark flex flex-col font-sans selection:bg-rust selection:text-white">
         <main className="flex-1 flex flex-col">
           {children}
         </main>

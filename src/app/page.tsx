@@ -1,19 +1,38 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getCustomerSessionId } from "@/lib/session";
-import { subscribeToMenu, MenuItem } from "@/services/menuService";
-import { subscribeToIngredients, Ingredient } from "@/services/inventoryService";
-import { subscribeToTables, RestaurantTable, reserveTable } from "@/services/tableService";
-import { placeOrder, subscribeToCustomerOrders, Order } from "@/services/orderService";
-import { submitFeedback, getCustomerPreferences, CustomerPreferences } from "@/services/feedbackService";
-import { callAISousChef, generateRescueDescription } from "@/services/aiService";
-import { 
-  Sparkles, Leaf, ShoppingCart, Clock, Check, ThumbsUp, ThumbsDown, 
-  Send, ChevronRight, X, AlertTriangle, ArrowRight, ClipboardList, Info, RefreshCw
+import { useRouter } from "next/navigation";
+import {
+  Leaf, ShoppingCart, Clock, Sparkles, X, ChevronRight, Send,
+  ThumbsUp, ThumbsDown, Check, RefreshCw, Trash2, ArrowRight
 } from "lucide-react";
+import {
+  subscribeToMenu,
+  MenuItem,
+} from "@/services/menuService";
+import {
+  subscribeToIngredients,
+  Ingredient,
+} from "@/services/inventoryService";
+import {
+  subscribeToTables,
+  RestaurantTable,
+} from "@/services/tableService";
+import {
+  placeOrder,
+  subscribeToCustomerOrders,
+  Order,
+} from "@/services/orderService";
+import {
+  submitFeedback,
+  getCustomerPreferences,
+  CustomerPreferences,
+} from "@/services/feedbackService";
+import { getCustomerSessionId } from "@/lib/session";
+import { callAISousChef, generateRescueDescription } from "@/services/aiService";
 
-export default function CustomerPage() {
+export default function GuestPage() {
+  const router = useRouter();
   const [customerId, setCustomerId] = useState("");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -31,7 +50,6 @@ export default function CustomerPage() {
   const [orderError, setOrderError] = useState("");
   
   // AI Sous-Chef state
-  const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<{ sender: "user" | "ai"; text: string }[]>([
     { sender: "ai", text: "Hello! I am your AI Sous-Chef. Ask me anything about the menu, dietary options, or what matches your taste!" }
@@ -168,7 +186,6 @@ export default function CustomerPage() {
       await placeOrder(selectedTable, customerId, orderItems);
       setCart({});
       setCartOpen(false);
-      // Scroll to order tracker
       const tracker = document.getElementById("order-tracker");
       if (tracker) tracker.scrollIntoView({ behavior: "smooth" });
     } catch (err: any) {
@@ -216,31 +233,60 @@ export default function CustomerPage() {
   const filteredMenuItems = menuItems.filter((item) => {
     const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
     const isRescue = getRescueStatus(item).length > 0;
-    return matchesCategory && !isRescue; // Keep rescue menu separate
+    return matchesCategory && !isRescue;
   });
 
   const rescueMenuItems = menuItems.filter((item) => {
     return getRescueStatus(item).length > 0;
   });
 
-  return (
-    <div className="flex-1 flex flex-col relative pb-20">
-      {/* Decorative glows */}
-      <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 left-0 w-[30rem] h-[30rem] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+  // Render stocking gauge helper
+  const renderRecipeStockBars = (recipeMap: any[]) => {
+    if (!recipeMap || recipeMap.length === 0) return null;
+    return (
+      <div className="mt-3 space-y-1 bg-stone-900/60 p-2 rounded border border-stone-800">
+        <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Kitchen Stocks:</span>
+        {recipeMap.map((recipeItem) => {
+          const ing = ingredients.find(i => i.id === recipeItem.ingredientId);
+          if (!ing) return null;
+          
+          const maxCap = Math.max(ing.lowStockThreshold * 3, 20);
+          const percent = Math.min((ing.currentStock / maxCap) * 100, 100);
+          const isLow = ing.currentStock <= ing.lowStockThreshold;
 
+          return (
+            <div key={recipeItem.ingredientId} className="flex items-center justify-between gap-2 text-[9px] text-stone-300">
+              <span className="truncate max-w-[80px]">{ing.name}</span>
+              <div className="flex-1 h-1.5 bg-stone-950 rounded-full overflow-hidden border border-stone-800">
+                <div 
+                  className={`h-full rounded-full transition-all duration-300 ${isLow ? "bg-brand-primary animate-pulse" : "bg-brand-secondary"}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <span className="tabular-nums font-mono text-[8px] text-stone-400">
+                {ing.currentStock} {ing.unit}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex-1 flex flex-col relative pb-20 bg-brand-deep">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-brand-deep/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-brand-dark/95 border-b-2 border-brand-primary px-6 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-md">
             <Leaf className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight font-display text-white flex items-center gap-1.5">
-              PlateIQ <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Bistro</span>
+            <h1 className="text-2xl font-extrabold tracking-tight font-display text-white flex items-center gap-1.5">
+              PLATEIQ <span className="text-xs font-normal px-2 py-0.5 rounded bg-brand-secondary/10 text-brand-secondary border border-brand-secondary/20 uppercase font-mono">Bistro</span>
             </h1>
-            <span className="text-[10px] text-gray-500 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] text-stone-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
               Real-time Ledger Connected
             </span>
           </div>
@@ -249,7 +295,7 @@ export default function CustomerPage() {
         <div className="flex items-center gap-4">
           <a
             href="/login"
-            className="text-xs font-semibold text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-white/5 hover:border-white/10"
+            className="text-xs font-semibold text-stone-300 hover:text-white transition-colors px-3 py-1.5 rounded border border-stone-700 hover:bg-stone-850"
           >
             Staff Dashboard
           </a>
@@ -257,11 +303,11 @@ export default function CustomerPage() {
           {/* Cart Indicator */}
           <button
             onClick={() => setCartOpen(true)}
-            className="relative p-2.5 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-2 cursor-pointer"
+            className="relative p-2 rounded border border-stone-700 bg-stone-900 hover:bg-stone-800 transition-colors flex items-center gap-2 cursor-pointer"
           >
-            <ShoppingCart className="w-5 h-5 text-indigo-400" />
+            <ShoppingCart className="w-5 h-5 text-brand-secondary" />
             {getCartItemsCount() > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border border-brand-deep animate-bounce">
+              <span className="absolute -top-1.5 -right-1.5 bg-brand-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border border-brand-deep">
                 {getCartItemsCount()}
               </span>
             )}
@@ -269,412 +315,218 @@ export default function CustomerPage() {
         </div>
       </header>
 
-      {/* Main Body */}
-      <div className="max-w-7xl mx-auto w-full px-6 py-8 space-y-12">
-        {/* Sustainability Dashboard Widget (ESG narrartive) */}
-        <section className="glass-panel rounded-2xl p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl border border-white/5">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-500 to-cyan-500" />
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
-              <Leaf className="w-4 h-4" />
-              <span>Waste Prevention Dashboard</span>
-            </div>
-            <h2 className="text-2xl font-bold font-display text-white">Every Bite Counts</h2>
-            <p className="text-sm text-gray-400 max-w-xl">
-              PlateIQ automatically computes dynamic discounts for menu items whose ingredients are in fresh surplus, cutting food waste. Our ledger tracks every single gram saved.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="text-center p-4 bg-white/5 rounded-xl border border-white/5">
-              <span className="block text-3xl font-extrabold text-emerald-400">14.5 kg</span>
-              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Food Waste Rescued</span>
-            </div>
-            <div className="text-center p-4 bg-white/5 rounded-xl border border-white/5">
-              <span className="block text-3xl font-extrabold text-cyan-400">-12.8%</span>
-              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Kitchen Waste Today</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Dynamic Rescue Menu (waste-reduction dynamic pricing) */}
-        {rescueMenuItems.length > 0 && (
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Leaf className="w-5 h-5 text-emerald-400" />
-                <h2 className="text-2xl font-extrabold font-display text-white">Chef's Rescue Menu</h2>
+      {/* Main Body Grid */}
+      <div className="max-w-7xl mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        
+        {/* Left 2 Columns: Chalkboard Menu */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* Sustainability ESG Widget */}
+          <section className="bg-brand-dark border-2 border-stone-700 rounded-xl p-5 relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+            <div className="absolute top-0 left-0 w-1 h-full bg-brand-accent" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-brand-secondary text-[10px] font-bold uppercase tracking-wider font-mono">
+                <Leaf className="w-3.5 h-3.5" />
+                <span>Zero-Waste Operations</span>
               </div>
-              <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-medium">
-                15% OFF — Surplus Pricing Applied
+              <h2 className="text-xl font-bold font-display text-white">Every Gram Rescued</h2>
+              <p className="text-xs text-stone-400 max-w-lg leading-relaxed">
+                We adjust discounts dynamically for dishes using surplus ingredients, helping prevent food waste. Our ledger logs every gram saved.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="text-center p-3 bg-stone-900/60 rounded border border-stone-800">
+                <span className="block text-2xl font-extrabold text-brand-accent">14.5 kg</span>
+                <span className="text-[8px] text-stone-400 uppercase tracking-wider font-bold">Waste Rescued</span>
+              </div>
+              <div className="text-center p-3 bg-stone-900/60 rounded border border-stone-800">
+                <span className="block text-2xl font-extrabold text-brand-secondary">-12.8%</span>
+                <span className="text-[8px] text-stone-400 uppercase tracking-wider font-bold">Waste Change</span>
+              </div>
+            </div>
+          </section>
+
+          {/* CHALKBOARD PANEL MENU */}
+          <div className="chalkboard-panel rounded-xl p-6 sm:p-8">
+            <div className="absolute top-0 right-0 left-0 h-1 bg-[#44403c]/20" />
+            
+            {/* Board Header */}
+            <div className="text-center border-b-2 border-stone-700 pb-6 mb-8">
+              <h2 className="text-3xl font-bold font-display text-white tracking-wide uppercase">Today's Menu Board</h2>
+              <p className="text-xs text-stone-400 font-mono italic mt-1">Fresh ingredients & Real-time availability</p>
+            </div>
+
+            {/* Chef's Rescue Menu Section (surplus items) */}
+            {rescueMenuItems.length > 0 && (
+              <div className="mb-10">
+                <div className="flex items-center justify-between border-b border-stone-800 pb-2.5 mb-6">
+                  <h3 className="text-lg font-bold font-display text-brand-secondary uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" />
+                    Chef's Rescue Specials
+                  </h3>
+                  <span className="text-[9px] uppercase font-mono bg-brand-primary/20 text-brand-primary px-2 py-0.5 rounded border border-brand-primary/30">
+                    15% Off Applied
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {rescueMenuItems.map((item) => {
+                    const discountedPrice = item.price * 0.85;
+                    const surplusIngredients = getRescueStatus(item);
+                    
+                    return (
+                      <div key={item.id} className="border border-stone-800 bg-[#262322] p-4 rounded-lg flex flex-col justify-between space-y-4">
+                        <div className="flex gap-4">
+                          <div className="w-20 h-20 shrink-0 bg-stone-850 rounded overflow-hidden relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                            <div className="absolute top-1 left-1 bg-brand-primary text-white font-bold text-[8px] px-1.5 py-0.5 rounded uppercase">
+                              Rescue
+                            </div>
+                          </div>
+
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                              <h4 className="font-bold text-white text-sm">{item.name}</h4>
+                              <div className="text-right">
+                                <span className="block text-brand-secondary font-bold text-sm">${discountedPrice.toFixed(2)}</span>
+                                <span className="block text-stone-500 text-[10px] line-through">${item.price.toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-stone-400 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
+                          </div>
+                        </div>
+
+                        {/* AI Sustainability Pitch */}
+                        <div className="bg-stone-900/80 border border-stone-800 rounded p-2.5 flex gap-2 items-start">
+                          <Sparkles className="w-3.5 h-3.5 text-brand-secondary shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-stone-300 italic leading-normal">
+                            {loadingRescue[item.id] ? "Chef is writing pitch..." : rescueDescriptions[item.id] || "Calculating dynamic impact..."}
+                          </p>
+                        </div>
+
+                        {renderRecipeStockBars(item.recipeMap)}
+
+                        <div className="flex justify-between items-center pt-2">
+                          <span className="text-[8px] bg-stone-900 border border-stone-800 px-2 py-0.5 rounded text-stone-400 uppercase font-mono">
+                            Rescues: {surplusIngredients.join(", ")}
+                          </span>
+                          
+                          <button
+                            onClick={() => addToCart(item.id)}
+                            disabled={!item.isAvailable}
+                            className="bg-brand-primary hover:bg-[#a1402a] disabled:bg-stone-800 disabled:text-stone-600 text-white font-semibold text-xs py-1.5 px-3.5 rounded cursor-pointer disabled:cursor-not-allowed transition-all"
+                          >
+                            {item.isAvailable ? "Add to Order" : "Sold Out"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Regular Menu Section */}
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-800 pb-3 mb-6">
+                <h3 className="text-lg font-bold font-display text-white uppercase tracking-wider">A La Carte</h3>
+
+                {/* Categories */}
+                <div className="flex flex-wrap gap-1">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1 rounded text-[10px] uppercase font-bold tracking-wider font-mono border transition-all cursor-pointer ${
+                        selectedCategory === cat
+                          ? "bg-brand-primary border-brand-primary text-white"
+                          : "bg-stone-900 border-stone-800 text-stone-400 hover:text-white"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredMenuItems.map((item) => (
+                  <div key={item.id} className="border border-stone-800 bg-[#262322] p-4 rounded-lg flex flex-col justify-between space-y-4">
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 shrink-0 bg-stone-850 rounded overflow-hidden relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                        {!item.isAvailable && (
+                          <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
+                            <span className="bg-brand-danger text-white font-bold text-[8px] uppercase tracking-wider py-0.5 px-1.5 rounded">
+                              Sold Out
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-bold text-white text-sm">{item.name}</h4>
+                          <span className="text-brand-secondary font-bold text-sm">${item.price.toFixed(2)}</span>
+                        </div>
+                        <p className="text-[11px] text-stone-400 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
+                      </div>
+                    </div>
+
+                    {renderRecipeStockBars(item.recipeMap)}
+
+                    <div className="flex justify-between items-center pt-2">
+                      <span className={`text-[8px] font-mono uppercase tracking-wider flex items-center gap-1 ${
+                        item.isAvailable ? "text-brand-secondary" : "text-brand-danger"
+                      }`}>
+                        <span className={`w-1 h-1 rounded-full ${
+                          item.isAvailable ? "bg-brand-secondary" : "bg-brand-danger"
+                        }`} />
+                        {item.isAvailable ? "Available" : "Stock Empty"}
+                      </span>
+
+                      <button
+                        onClick={() => addToCart(item.id)}
+                        disabled={!item.isAvailable}
+                        className="bg-brand-primary hover:bg-[#a1402a] disabled:bg-stone-800 disabled:text-stone-600 text-white font-semibold text-xs py-1.5 px-3.5 rounded cursor-pointer disabled:cursor-not-allowed transition-all"
+                      >
+                        {item.isAvailable ? "Add to Order" : "Sold Out"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Right 1 Column: Tactile Sidebar Elements */}
+        <div className="space-y-8 lg:col-span-1">
+
+          {/* 📜 "Ask the Chef" Pinned Parchment Pad (AI Chat widget inline!) */}
+          <section className="parchment-ticket parchment-ticket-jagged rounded-t-lg p-5 flex flex-col space-y-4">
+            <div className="border-b-2 border-stone-300 pb-3 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-brand-primary" />
+                <h3 className="font-bold font-display text-sm uppercase tracking-wide text-brand-primary">Ask the Chef</h3>
+              </div>
+              <span className="text-[8px] font-mono bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-bold uppercase">
+                Gemini AI
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {rescueMenuItems.map((item) => {
-                const discountedPrice = item.price * 0.85;
-                const surplusIngredients = getRescueStatus(item);
-                
-                return (
-                  <div key={item.id} className="glass-panel glass-panel-interactive rounded-2xl overflow-hidden shadow-lg border border-white/5 flex flex-col sm:flex-row">
-                    <div className="relative w-full sm:w-44 h-44 shrink-0 bg-gray-800">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                      <div className="absolute top-2 left-2 bg-emerald-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md">
-                        <Leaf className="w-3.5 h-3.5" />
-                        <span>Rescue</span>
-                      </div>
-                    </div>
-
-                    <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                      <div>
-                        <div className="flex justify-between items-start gap-4">
-                          <h3 className="font-bold text-lg text-white">{item.name}</h3>
-                          <div className="text-right">
-                            <span className="block text-emerald-400 font-extrabold text-lg">${discountedPrice.toFixed(2)}</span>
-                            <span className="block text-gray-500 text-xs line-through">${item.price.toFixed(2)}</span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-2 line-clamp-2">{item.description}</p>
-                      </div>
-
-                      {/* AI dynamic Description Tagline */}
-                      <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-3 flex gap-2 items-start">
-                        <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                        <div className="text-[11px] text-indigo-300 italic">
-                          {loadingRescue[item.id] ? "Generating eco-pitch..." : rescueDescriptions[item.id] || "Calculating carbon offset..."}
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2">
-                        <span className="text-[10px] bg-white/5 px-2 py-1 rounded-md text-gray-400 font-medium border border-white/5">
-                          Rescuing: {surplusIngredients.join(", ")}
-                        </span>
-                        
-                        <button
-                          onClick={() => addToCart(item.id)}
-                          disabled={!item.isAvailable}
-                          className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-800 disabled:text-gray-600 font-semibold text-xs py-2 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/10 cursor-pointer disabled:cursor-not-allowed"
-                        >
-                          {item.isAvailable ? "Add to Order" : "Sold Out"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Regular Menu */}
-        <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
-            <h2 className="text-2xl font-extrabold font-display text-white">Our Menu</h2>
-
-            {/* Category Filter */}
-            <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-1.5 rounded-xl font-medium text-xs border transition-all cursor-pointer ${
-                    selectedCategory === cat
-                      ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20"
-                      : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredMenuItems.map((item) => (
-              <div key={item.id} className="glass-panel glass-panel-interactive rounded-2xl overflow-hidden shadow-lg border border-white/5 flex flex-col sm:flex-row">
-                <div className="relative w-full sm:w-40 h-40 shrink-0 bg-gray-800">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                  {!item.isAvailable && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
-                      <span className="bg-rose-500/90 text-white font-bold text-[10px] uppercase tracking-wider py-1 px-2.5 rounded-full border border-rose-400/20 shadow-md">
-                        Sold Out
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                  <div>
-                    <div className="flex justify-between items-start gap-4">
-                      <h3 className="font-bold text-lg text-white">{item.name}</h3>
-                      <span className="text-indigo-400 font-extrabold text-lg">${item.price.toFixed(2)}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2 line-clamp-2">{item.description}</p>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-2">
-                    <span className={`text-[10px] font-semibold flex items-center gap-1.5 ${
-                      item.isAvailable ? "text-emerald-400" : "text-rose-400"
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        item.isAvailable ? "bg-emerald-500" : "bg-rose-500"
-                      }`} />
-                      {item.isAvailable ? "Ingredients in Stock" : "Sold Out (Stock Replenishment Required)"}
-                    </span>
-
-                    <button
-                      onClick={() => addToCart(item.id)}
-                      disabled={!item.isAvailable}
-                      className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-800 disabled:text-gray-600 font-semibold text-xs py-2 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer disabled:cursor-not-allowed"
-                    >
-                      {item.isAvailable ? "Add to Order" : "Unavailable"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Live Order Tracker & Closed Loop Feedback */}
-        {customerOrders.length > 0 && (
-          <section id="order-tracker" className="space-y-6">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-indigo-400 animate-pulse" />
-              <h2 className="text-2xl font-extrabold font-display text-white">Live Order Status</h2>
-            </div>
-
-            <div className="space-y-6">
-              {customerOrders.map((order) => {
-                const isCompleted = order.status === "billed" || order.status === "served";
-                const date = order.createdAt ? new Date(order.createdAt) : new Date();
-                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                // ETA computation
-                const etaDate = order.estimatedReadyAt ? new Date(order.estimatedReadyAt) : null;
-                const etaStr = etaDate ? etaDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Calculating...";
-
-                return (
-                  <div key={order.id} className="glass-panel rounded-2xl p-6 shadow-xl border border-white/5 space-y-6 relative overflow-hidden">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
-                      <div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Order ID: #{order.id.slice(0, 8)}</span>
-                        <h3 className="font-bold text-white mt-0.5">Table {order.tableId}</h3>
-                      </div>
-                      
-                      <div className="text-right">
-                        <span className="text-sm font-semibold text-gray-400">Placed: {timeStr}</span>
-                        {!isCompleted && (
-                          <span className="block text-xs text-indigo-300 font-medium">ETA: {etaStr}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Progress visual tracker */}
-                    <div className="grid grid-cols-5 text-center relative pt-2">
-                      <div className="absolute top-[28px] left-[10%] right-[10%] h-0.5 bg-white/5 -z-10" />
-                      
-                      {/* Progress Line fill */}
-                      <div 
-                        className="absolute top-[28px] left-[10%] h-0.5 bg-gradient-to-r from-indigo-500 to-cyan-500 -z-10 transition-all duration-1000"
-                        style={{
-                          width: 
-                            order.status === "placed" ? "0%" :
-                            order.status === "preparing" ? "25%" :
-                            order.status === "ready" ? "50%" :
-                            order.status === "served" ? "75%" : "80%"
-                        }}
-                      />
-
-                      {[
-                        { key: "placed", label: "Placed" },
-                        { key: "preparing", label: "Kitchen Prep" },
-                        { key: "ready", label: "Ready" },
-                        { key: "served", label: "Served" },
-                        { key: "billed", label: "Billed" },
-                      ].map((step, idx) => {
-                        const statusWeights: { [key: string]: number } = { placed: 1, preparing: 2, ready: 3, served: 4, billed: 5 };
-                        const isActive = statusWeights[order.status] >= statusWeights[step.key];
-                        const isCurrent = order.status === step.key;
-
-                        return (
-                          <div key={step.key} className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-xs transition-all shadow-md ${
-                              isCurrent ? "bg-cyan-500 border-cyan-400 text-brand-deep animate-pulse shadow-cyan-500/20" :
-                              isActive ? "bg-indigo-600 border-indigo-500 text-white" :
-                              "bg-brand-deep border-white/5 text-gray-500"
-                            }`}>
-                              {idx + 1}
-                            </div>
-                            <span className={`text-[10px] font-semibold ${isActive ? "text-indigo-300" : "text-gray-500"}`}>{step.label}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Items List */}
-                    <div className="bg-brand-deep/30 rounded-xl p-4 border border-white/5 space-y-3">
-                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Ordered Items</h4>
-                      <div className="divide-y divide-white/5 space-y-2.5">
-                        {order.items.map((item) => (
-                          <div key={item.menuItemId} className="flex items-center justify-between pt-2.5 first:pt-0">
-                            <div>
-                              <span className="font-semibold text-sm text-white">{item.name}</span>
-                              <span className="text-xs text-gray-500 ml-2">x{item.quantity}</span>
-                            </div>
-                            
-                            {/* Thumbs Feedback loops */}
-                            {(order.status === "ready" || order.status === "served" || order.status === "billed") ? (
-                              <div className="flex items-center gap-2">
-                                {ratedDishes.has(item.menuItemId) ? (
-                                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                                    <Check className="w-3.5 h-3.5" /> Preference Saved
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span className="text-[10px] text-gray-500">Rate dish:</span>
-                                    <button
-                                      onClick={() => handleFeedback(item.menuItemId, "up")}
-                                      className="p-1 rounded-md bg-white/5 border border-white/5 hover:border-emerald-500/50 hover:text-emerald-400 hover:bg-emerald-500/5 transition-colors cursor-pointer"
-                                      title="Thumbs Up"
-                                    >
-                                      <ThumbsUp className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleFeedback(item.menuItemId, "down")}
-                                      className="p-1 rounded-md bg-white/5 border border-white/5 hover:border-rose-500/50 hover:text-rose-400 hover:bg-rose-500/5 transition-colors cursor-pointer"
-                                      title="Thumbs Down"
-                                    >
-                                      <ThumbsDown className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="border-t border-white/5 pt-3 flex justify-between items-center text-xs">
-                        <span className="text-gray-400">Total (Tax & Service Charge Incl.):</span>
-                        <span className="font-bold text-indigo-400 text-sm">${order.totalAmount.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Table Reservation Flow */}
-        <section className="glass-panel rounded-2xl p-8 shadow-xl border border-white/5 space-y-6">
-          <div className="flex items-center gap-2 border-b border-white/5 pb-4">
-            <Clock className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-xl font-bold font-display text-white">Book a Table</h2>
-          </div>
-          
-          <form 
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const form = e.target as any;
-              const name = form.customerName.value;
-              const size = parseInt(form.partySize.value, 10);
-              const slot = form.timeSlot.value;
-              if (!name || !size || !slot) return;
-              
-              setOrderError("");
-              try {
-                const res = await reserveTable(name, size, slot);
-                alert(`Table ${res.table.tableNumber} assigned successfully! Reservation ID: ${res.reservationId}`);
-                form.reset();
-              } catch (err: any) {
-                alert(err.message || "Failed to book table.");
-              }
-            }}
-            className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end"
-          >
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Guest Name</label>
-              <input
-                name="customerName"
-                type="text"
-                required
-                placeholder="Your Name"
-                className="block w-full px-4 py-3 bg-brand-deep/50 border border-white/5 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Party Size</label>
-              <input
-                name="partySize"
-                type="number"
-                min="1"
-                max="8"
-                required
-                placeholder="4"
-                className="block w-full px-4 py-3 bg-brand-deep/50 border border-white/5 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Time Slot</label>
-              <select
-                name="timeSlot"
-                required
-                className="block w-full px-4 py-3 bg-brand-deep/50 border border-white/5 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
-              >
-                <option value="now" className="bg-brand-dark text-white">Walk-in Now (Assign occupancy)</option>
-                <option value="18:00" className="bg-brand-dark text-white">18:00</option>
-                <option value="19:00" className="bg-brand-dark text-white">19:00</option>
-                <option value="20:00" className="bg-brand-dark text-white">20:00</option>
-                <option value="21:00" className="bg-brand-dark text-white">21:00</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              className="glow-btn bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3 px-6 rounded-xl text-sm transition-all shadow-md shadow-cyan-600/10 cursor-pointer flex items-center justify-center gap-2"
-            >
-              Check & Assign Table <ChevronRight className="w-4 h-4" />
-            </button>
-          </form>
-        </section>
-      </div>
-
-      {/* Floating AI Sous-Chef Chat Drawer */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-        {chatOpen ? (
-          <div className="w-[20rem] sm:w-[24rem] h-[28rem] glass-panel rounded-2xl shadow-2xl flex flex-col border border-white/10 animate-fade-in relative mb-4">
-            {/* Header */}
-            <div className="p-4 border-b border-white/5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-2xl flex items-center justify-between text-white">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 animate-pulse" />
-                <div>
-                  <h3 className="font-bold text-sm">AI Sous-Chef</h3>
-                  {preferences && (
-                    <span className="block text-[8px] text-indigo-200">
-                      Personalized for you (Likes: {preferences.likedCategories.slice(0, 2).join(", ") || "General"})
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => setChatOpen(false)} className="text-white/80 hover:text-white cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+            {/* Chat Messages */}
+            <div className="h-56 overflow-y-auto space-y-3 p-1 rounded bg-[#f5efe4] border border-stone-200 text-[11px] leading-relaxed">
               {chatMessages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] p-3 rounded-2xl border ${
+                  <div className={`max-w-[85%] p-2 rounded shadow-xs ${
                     msg.sender === "user" 
-                      ? "bg-indigo-600 border-indigo-500 text-white" 
-                      : "bg-white/5 border-white/5 text-gray-300"
+                      ? "bg-brand-primary text-white rounded-tr-none" 
+                      : "bg-[#faf9f6] border border-stone-200 text-stone-800 rounded-tl-none"
                   }`}>
                     {msg.text}
                   </div>
@@ -682,83 +534,261 @@ export default function CustomerPage() {
               ))}
               {aiLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-white/5 border border-white/5 p-3 rounded-2xl text-gray-500 flex items-center gap-1.5">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Consulting ledger availability...
+                  <div className="bg-[#faf9f6] border border-stone-200 p-2 rounded text-stone-500 flex items-center gap-1.5 animate-pulse">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    Chef is checking stock...
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Quick prompts */}
-            <div className="p-2 border-t border-white/5 flex gap-1.5 overflow-x-auto shrink-0 bg-white/2">
+            {/* Quick Prompts */}
+            <div className="flex gap-1 overflow-x-auto pb-1">
               {[
                 "Suggest something spicy!",
-                "Vegetarian main dishes",
-                "Starters under $10",
+                "Vegetarian dishes",
+                "Dishes under $10",
               ].map((p, idx) => (
                 <button
                   key={idx}
-                  onClick={() => {
-                    setChatInput(p);
-                  }}
-                  className="px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-full text-[10px] text-indigo-300 hover:text-indigo-200 whitespace-nowrap cursor-pointer"
+                  onClick={() => setChatInput(p)}
+                  className="px-2 py-0.5 bg-stone-200 hover:bg-stone-300 text-stone-700 border border-stone-300 rounded-full text-[9px] whitespace-nowrap cursor-pointer transition-colors"
                 >
                   {p}
                 </button>
               ))}
             </div>
 
-            {/* Input */}
-            <div className="p-3 border-t border-white/5 flex gap-2">
+            {/* Send Input */}
+            <div className="flex gap-1">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
-                placeholder="Ask about ingredients or recommendations..."
-                className="flex-1 bg-brand-deep/50 border border-white/5 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-white"
+                placeholder="Ask about ingredients or dishes..."
+                className="flex-1 bg-[#faf9f6] border border-stone-300 rounded px-2.5 py-1.5 text-xs text-stone-850 focus:outline-none focus:border-brand-primary"
               />
               <button
                 onClick={handleSendChat}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-xl cursor-pointer"
+                className="bg-brand-primary hover:bg-[#a1402a] text-white px-2.5 py-1.5 rounded cursor-pointer transition-colors"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
-        ) : null}
+          </section>
 
-        <button
-          onClick={() => setChatOpen(!chatOpen)}
-          className="glow-btn bg-indigo-600 hover:bg-indigo-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/40 border border-indigo-400/20 cursor-pointer animate-pulse-glow"
-        >
-          <Sparkles className="w-6 h-6" />
-        </button>
+          {/* Table Reservation & Walk-in */}
+          <section className="parchment-ticket rounded-lg p-5 space-y-4">
+            <div className="border-b-2 border-stone-300 pb-2">
+              <h3 className="font-bold font-display text-sm uppercase tracking-wide text-stone-850">Book a Table</h3>
+              <p className="text-[10px] text-stone-500 font-mono">Immediate booking or reservation</p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const name = formData.get("name") as string;
+                const size = formData.get("partySize") as string;
+                const slot = formData.get("timeSlot") as string;
+
+                if (!name || !size || !slot) return;
+
+                setPlacing(true);
+                fetch("/api/tables/reserve", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ customerName: name, partySize: size, timeSlot: slot }),
+                })
+                  .then((res) => res.json())
+                  .then((data) => {
+                    if (data.error) {
+                      alert(data.error);
+                    } else {
+                      alert(`Successfully reserved Table ${data.table.tableNumber} under name: ${name}!`);
+                      e.currentTarget.reset();
+                    }
+                  })
+                  .catch(() => alert("Failed to book table. Please check table capacities."))
+                  .finally(() => setPlacing(false));
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div className="space-y-1">
+                <label className="block font-bold text-stone-700">Customer Name</label>
+                <input
+                  name="name"
+                  type="text"
+                  required
+                  placeholder="E.g., Saatvik"
+                  className="w-full bg-white border border-stone-300 rounded p-1.5 text-stone-800 focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="block font-bold text-stone-700">Party Size</label>
+                  <select name="partySize" required className="w-full bg-white border border-stone-300 rounded p-1.5 text-stone-800">
+                    <option value="2">2 Guests</option>
+                    <option value="4">4 Guests</option>
+                    <option value="6">6 Guests</option>
+                    <option value="8">8 Guests</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-stone-700">Time Slot</label>
+                  <select name="timeSlot" required className="w-full bg-white border border-stone-300 rounded p-1.5 text-stone-800">
+                    <option value="now">Now (Walk-in)</option>
+                    <option value="18:00">18:00</option>
+                    <option value="19:30">19:30</option>
+                    <option value="21:00">21:00</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={placing}
+                className="w-full bg-brand-primary hover:bg-[#a1402a] text-white font-semibold py-2 rounded text-xs transition-colors cursor-pointer flex items-center justify-center gap-1"
+              >
+                {placing ? "Checking..." : "Confirm Reservation"}
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </section>
+
+          {/* 🧾 Live Order Tracker (Receipt card!) */}
+          {customerOrders.length > 0 && (
+            <section id="order-tracker" className="parchment-ticket parchment-ticket-jagged rounded-t-lg p-5 space-y-4">
+              <div className="border-b-2 border-stone-300 pb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-brand-primary animate-pulse" />
+                  <h3 className="font-bold font-display text-sm uppercase tracking-wide text-brand-primary">Live Orders</h3>
+                </div>
+                <span className="text-[8px] font-mono bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded font-bold uppercase">
+                  Receipt
+                </span>
+              </div>
+
+              <div className="space-y-5 divide-y divide-stone-200">
+                {customerOrders.map((order) => {
+                  const estReady = order.estimatedReadyAt ? new Date(order.estimatedReadyAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A";
+                  const elapsed = (Date.now() - new Date(order.createdAt).getTime()) / 60000;
+                  const duration = 12; // average
+                  const progress = Math.min((elapsed / duration) * 100, 100);
+
+                  return (
+                    <div key={order.id} className="pt-4 first:pt-0 space-y-3 text-xs text-stone-800">
+                      <div className="flex justify-between items-start font-mono">
+                        <div>
+                          <span className="block font-bold">Ticket: #{order.id.slice(-4).toUpperCase()}</span>
+                          <span className="text-[9px] text-stone-500">Table {order.tableId}</span>
+                        </div>
+                        <span className="px-2 py-0.5 bg-stone-200 border border-stone-300 text-stone-800 rounded text-[9px] uppercase font-bold tracking-wider">
+                          {order.status}
+                        </span>
+                      </div>
+
+                      {/* Item Roster */}
+                      <ul className="space-y-1 font-mono text-[10px] text-stone-600 border-y border-dashed border-stone-300 py-2">
+                        {order.items.map((item, idx) => (
+                          <li key={idx} className="flex justify-between">
+                            <span>{item.quantity}x {item.name}</span>
+                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* ETA Tracker */}
+                      {order.status !== "served" && order.status !== "billed" && (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[10px] font-mono text-stone-500">
+                            <span>ETA: {estReady}</span>
+                            <span>Progress</span>
+                          </div>
+                          <div className="w-full h-2 bg-stone-200 rounded-full overflow-hidden border border-stone-300">
+                            <div 
+                              className="h-full bg-brand-primary transition-all duration-500"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Closed Loop Taste Feedback (thumbs rating stamps!) */}
+                      {(order.status === "served" || order.status === "billed") && (
+                        <div className="bg-[#f0e8db] border border-stone-200 p-2.5 rounded space-y-2">
+                          <div className="text-[10px] font-bold text-stone-700 flex items-center gap-1">
+                            <ThumbsUp className="w-3.5 h-3.5 text-brand-primary" />
+                            Rate items to guide the Chef:
+                          </div>
+
+                          <div className="space-y-1.5">
+                            {order.items.map((item) => {
+                              const rated = ratedDishes.has(item.menuItemId);
+                              return (
+                                <div key={item.menuItemId} className="flex items-center justify-between text-[10px]">
+                                  <span className="truncate max-w-[120px] text-stone-800">{item.name}</span>
+                                  {rated ? (
+                                    <span className="text-brand-accent font-bold uppercase text-[9px] flex items-center gap-0.5">
+                                      <Check className="w-3 h-3" /> Stamped
+                                    </span>
+                                  ) : (
+                                    <div className="flex gap-1">
+                                      <button
+                                        onClick={() => handleFeedback(item.menuItemId, "up")}
+                                        className="p-1 hover:bg-stone-300 rounded border border-stone-300 text-stone-600 hover:text-stone-900 cursor-pointer"
+                                      >
+                                        <ThumbsUp className="w-3 h-3" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleFeedback(item.menuItemId, "down")}
+                                        className="p-1 hover:bg-stone-300 rounded border border-stone-300 text-stone-600 hover:text-stone-900 cursor-pointer"
+                                      >
+                                        <ThumbsDown className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+        </div>
       </div>
 
       {/* Cart Modal Slideover */}
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-brand-dark border-l border-white/10 h-full p-6 flex flex-col justify-between shadow-2xl animate-slide-up">
+          <div className="w-full max-w-md bg-brand-dark border-l-2 border-brand-primary h-full p-6 flex flex-col justify-between shadow-2xl animate-slide-up">
             <div className="space-y-6 flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <div className="flex items-center justify-between border-b border-stone-800 pb-4">
                 <div className="flex items-center gap-2 text-white">
-                  <ShoppingCart className="w-5 h-5 text-indigo-400" />
-                  <h2 className="text-xl font-bold font-display">Your Order</h2>
+                  <ShoppingCart className="w-5 h-5 text-brand-secondary" />
+                  <h2 className="text-xl font-bold font-display uppercase tracking-wider">Your Order List</h2>
                 </div>
-                <button onClick={() => setCartOpen(false)} className="text-gray-400 hover:text-white cursor-pointer">
+                <button onClick={() => setCartOpen(false)} className="text-stone-400 hover:text-white cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {Object.keys(cart).length === 0 ? (
-                <div className="text-center py-20 space-y-4 text-gray-500">
-                  <ClipboardList className="w-12 h-12 mx-auto text-gray-600" />
-                  <p className="text-sm">Your order card is empty.</p>
+                <div className="text-center py-20 space-y-3 text-stone-500">
+                  <ShoppingCart className="w-12 h-12 mx-auto text-stone-700" />
+                  <p className="text-xs">Your order card is empty.</p>
                 </div>
               ) : (
-                <div className="space-y-4 divide-y divide-white/5">
+                <div className="space-y-4 divide-y divide-stone-800">
                   {Object.entries(cart).map(([itemId, qty]) => {
                     const item = menuItems.find((m) => m.id === itemId);
                     if (!item) return null;
@@ -768,23 +798,21 @@ export default function CustomerPage() {
                     return (
                       <div key={itemId} className="flex items-center justify-between pt-4 first:pt-0">
                         <div>
-                          <h4 className="font-bold text-sm text-white">{item.name}</h4>
-                          <span className="text-xs text-indigo-400">${itemPrice.toFixed(2)} each</span>
-                          {isRescue && (
-                            <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded ml-2 font-medium">Rescue Applied</span>
-                          )}
+                          <h4 className="font-bold text-white text-xs">{item.name}</h4>
+                          <span className="text-[10px] text-brand-secondary font-mono">${itemPrice.toFixed(2)} each</span>
                         </div>
-                        <div className="flex items-center gap-3">
+
+                        <div className="flex items-center gap-2.5">
                           <button
                             onClick={() => removeFromCart(itemId)}
-                            className="w-7 h-7 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer font-bold"
+                            className="w-6 h-6 rounded border border-stone-700 text-stone-400 hover:text-white flex items-center justify-center text-xs hover:bg-stone-900 cursor-pointer"
                           >
                             -
                           </button>
-                          <span className="font-bold text-sm text-white">{qty}</span>
+                          <span className="text-xs font-mono font-bold text-white">{qty}</span>
                           <button
                             onClick={() => addToCart(itemId)}
-                            className="w-7 h-7 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer font-bold"
+                            className="w-6 h-6 rounded border border-stone-700 text-stone-400 hover:text-white flex items-center justify-center text-xs hover:bg-stone-900 cursor-pointer"
                           >
                             +
                           </button>
@@ -796,57 +824,56 @@ export default function CustomerPage() {
               )}
             </div>
 
+            {/* Checkout Options */}
             {Object.keys(cart).length > 0 && (
-              <div className="border-t border-white/5 pt-6 space-y-6">
-                {/* Table & customer details */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Table Number</label>
+              <div className="border-t border-stone-850 pt-4 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-stone-400">
+                    <span>Tax (8%)</span>
+                    <span>${(getCartTotal() * 0.08).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-stone-400">
+                    <span>Service Charge (10%)</span>
+                    <span>${(getCartTotal() * 0.10).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold text-white border-t border-dashed border-stone-800 pt-2">
+                    <span>Total Amount</span>
+                    <span className="text-brand-secondary">${(getCartTotal() * 1.18).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">Select Table</label>
                     <select
                       value={selectedTable}
                       onChange={(e) => setSelectedTable(e.target.value)}
-                      required
-                      className="block w-full px-4 py-3 bg-brand-deep border border-white/5 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                      className="w-full bg-stone-900 border border-stone-700 rounded p-2 text-xs text-white"
                     >
-                      <option value="">Select your table...</option>
+                      <option value="">-- Choose Your Table --</option>
                       {tables.map((t) => (
-                        <option key={t.id} value={t.tableNumber.toString()} className="bg-brand-dark text-white">
-                          Table {t.tableNumber} (Seats {t.capacity}) - {t.status}
+                        <option key={t.id} value={t.tableNumber}>
+                          Table {t.tableNumber} (Capacity: {t.capacity})
                         </option>
                       ))}
                     </select>
                   </div>
 
                   {orderError && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
-                      <span>{orderError}</span>
-                    </div>
+                    <p className="text-[10px] text-brand-primary bg-brand-primary/10 border border-brand-primary/20 p-2 rounded">
+                      {orderError}
+                    </p>
                   )}
-                </div>
 
-                <div className="flex justify-between items-center text-gray-400 font-semibold text-sm">
-                  <span>Cart Subtotal:</span>
-                  <span className="text-xl font-bold text-white">${getCartTotal().toFixed(2)}</span>
+                  <button
+                    onClick={handlePlaceOrder}
+                    disabled={placing}
+                    className="w-full bg-brand-primary hover:bg-[#a1402a] disabled:bg-stone-800 text-white font-bold py-2 rounded text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    {placing ? "Submitting Ticket..." : "Send Ticket to Kitchen"}
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-
-                <button
-                  onClick={handlePlaceOrder}
-                  disabled={placing}
-                  className="w-full glow-btn bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 px-4 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {placing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Running Transaction Ledger...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Submit Order to Ledger</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
               </div>
             )}
           </div>

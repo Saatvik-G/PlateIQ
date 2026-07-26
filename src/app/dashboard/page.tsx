@@ -20,24 +20,25 @@ export default function DashboardPage() {
   const [staffRecord, setStaffRecord] = useState<StaffMember | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Subscribed Data
+  // Real-time states
   const [orders, setOrders] = useState<Order[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
-
-  // Navigation tab
+  
+  // Dashboard UI states
   const [activeTab, setActiveTab] = useState<"orders" | "tables" | "inventory" | "staff" | "analytics">("orders");
-
-  // Interaction State
-  const [restockValues, setRestockValues] = useState<{ [ingId: string]: string }>({});
-  const [expiryValues, setExpiryValues] = useState<{ [ingId: string]: string }>({});
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  // Staff list (mock roster data populated from our DB or setup)
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  
+  // Roster states
   const [staffRoster, setStaffRoster] = useState<any[]>([]);
+
+  // Restock slider state
+  const [restockValues, setRestockValues] = useState<{ [ingId: string]: string }>({});
+  // Expiry date selector state
+  const [expiryValues, setExpiryValues] = useState<{ [ingId: string]: string }>({});
 
   // Authentication check
   useEffect(() => {
@@ -55,16 +56,8 @@ export default function DashboardPage() {
           } else if (record.role === "waiter") {
             setActiveTab("orders");
           } else {
-            setActiveTab("orders");
+            setActiveTab("orders"); // Admins start at orders
           }
-        } else {
-          // Fallback if record missing
-          setStaffRecord({
-            uid: user.uid,
-            name: "Unknown Staff",
-            email: user.email || "",
-            role: "waiter",
-          });
         }
         setLoading(false);
       }
@@ -84,6 +77,8 @@ export default function DashboardPage() {
     const unsubNotifications = subscribeToNotifications(setNotifications);
 
     // Fetch staff list for roster
+    const { getDb } = require("@/lib/firebase");
+    const { collection, getDocs } = require("firebase/firestore");
     getDocs(collection(getDb(), "staff")).then((snap: any) => {
       const roster: any[] = [];
       snap.forEach((doc: any) => {
@@ -101,30 +96,31 @@ export default function DashboardPage() {
     };
   }, [staffRecord]);
 
+  // Handle Logout
   const handleLogout = async () => {
     try {
       await logout();
       router.push("/login");
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error("Logout failed:", err);
     }
   };
 
-  // Order status transitions
+  // Order State Transition (placed -> preparing -> ready -> served -> billed)
   const handleTransitionOrder = async (orderId: string, currentStatus: string) => {
+    setStatusMessage(null);
+    setActionLoading(orderId);
+    
     let nextStatus = "";
     if (currentStatus === "placed") nextStatus = "preparing";
     else if (currentStatus === "preparing") nextStatus = "ready";
     else if (currentStatus === "ready") nextStatus = "served";
     else if (currentStatus === "served") nextStatus = "billed";
-
-    if (!nextStatus) return;
-    setActionLoading(orderId);
-    setStatusMessage(null);
+    else return; // already completed
 
     try {
       await updateOrderStatus(orderId, nextStatus);
-      setStatusMessage({ type: "success", text: `Order transitioned to ${nextStatus}!` });
+      setStatusMessage({ type: "success", text: `Order #${orderId.slice(-4).toUpperCase()} marked as ${nextStatus}!` });
     } catch (err: any) {
       console.error(err);
       setStatusMessage({ type: "error", text: err.message || "Failed to update order status." });
@@ -133,76 +129,74 @@ export default function DashboardPage() {
     }
   };
 
-  // Restock ingredient
-  const handleRestock = async (ingId: string) => {
-    const qty = parseFloat(restockValues[ingId] || "");
-    if (isNaN(qty) || qty <= 0) return;
-
-    setActionLoading(`restock_${ingId}`);
+  // Table Status change
+  const handleTableStatus = async (tableId: string, status: "free" | "occupied" | "reserved") => {
     setStatusMessage(null);
+    try {
+      await updateTableStatus(tableId, status);
+      setStatusMessage({ type: "success", text: `Table status updated successfully.` });
+    } catch (err: any) {
+      alert(err.message || "Failed to update table status.");
+    }
+  };
+
+  // Restock Action
+  const handleRestock = async (ingId: string) => {
+    const qtyStr = restockValues[ingId];
+    const qty = parseFloat(qtyStr);
+    if (isNaN(qty) || qty <= 0) {
+      alert("Please enter a valid positive number for restocking.");
+      return;
+    }
+
+    setStatusMessage(null);
+    setActionLoading(`restock_${ingId}`);
 
     try {
       await restockIngredient(ingId, qty);
-      setRestockValues((prev) => ({ ...prev, [ingId]: "" }));
-      setStatusMessage({ type: "success", text: "Ingredient restocked and menu items recalculated!" });
+      setRestockValues({ ...restockValues, [ingId]: "" });
+      setStatusMessage({ type: "success", text: "Ledger updated: Stock replenished successfully!" });
     } catch (err: any) {
       console.error(err);
-      setStatusMessage({ type: "error", text: err.message || "Failed to restock." });
+      setStatusMessage({ type: "error", text: err.message || "Failed to restock ingredient." });
     } finally {
       setActionLoading(null);
     }
   };
 
-  // Update Surplus & Expiry
+  // Update Surplus Toggle
   const handleUpdateSurplus = async (ingId: string, currentSurplus: boolean) => {
-    setActionLoading(`surplus_${ingId}`);
-    setStatusMessage(null);
+    const ing = ingredients.find(i => i.id === ingId);
+    let expiryStr: string | null = null;
+    if (ing?.expiryDate) {
+      expiryStr = new Date(ing.expiryDate).toISOString().split("T")[0];
+    }
 
     try {
-      const expDate = expiryValues[ingId] || null;
-      await updateIngredientSurplus(ingId, !currentSurplus, expDate);
-      setStatusMessage({ type: "success", text: "Sustainability settings updated!" });
+      await updateIngredientSurplus(ingId, !currentSurplus, expiryStr);
     } catch (err: any) {
-      console.error(err);
-      setStatusMessage({ type: "error", text: err.message || "Failed to update." });
-    } finally {
-      setActionLoading(null);
+      alert(err.message || "Failed to update surplus status.");
     }
   };
 
+  // Update Expiry Date
   const handleUpdateExpiry = async (ingId: string) => {
-    const expDate = expiryValues[ingId];
-    if (!expDate) return;
-    setActionLoading(`expiry_${ingId}`);
+    const dateStr = expiryValues[ingId];
+    if (!dateStr) {
+      alert("Please select a valid expiry date.");
+      return;
+    }
+
     setStatusMessage(null);
-
     try {
-      // Find current surplus state
-      const ing = ingredients.find((i) => i.id === ingId);
-      const isSurp = ing ? ing.isSurplus : false;
-      await updateIngredientSurplus(ingId, isSurp, expDate);
-      setStatusMessage({ type: "success", text: "Expiry date logged to ledger!" });
+      await updateIngredientSurplus(ingId, ingredients.find(i => i.id === ingId)?.isSurplus || false, dateStr);
+      setStatusMessage({ type: "success", text: "Expiry date saved successfully." });
     } catch (err: any) {
-      console.error(err);
-      setStatusMessage({ type: "error", text: err.message || "Failed to log expiry date." });
-    } finally {
-      setActionLoading(null);
+      alert(err.message || "Failed to update expiry date.");
     }
   };
 
-  // Table manual status overrides
-  const handleTableStatus = async (tableId: string, nextStatus: "free" | "occupied" | "reserved") => {
-    setActionLoading(`table_${tableId}`);
-    try {
-      await updateTableStatus(tableId, nextStatus);
-    } catch (err: any) {
-      alert(err.message || "Failed to update table status.");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Menu Manual 86 Override
+  // Menu Manual Availability Override
   const handleMenuOverride = async (itemId: string, currentAvailability: boolean) => {
     try {
       await overrideMenuAvailability(itemId, !currentAvailability);
@@ -214,18 +208,16 @@ export default function DashboardPage() {
   if (loading || !staffRecord) {
     return (
       <div className="flex-1 flex flex-col justify-center items-center bg-brand-deep">
-        <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
-        <span className="text-xs text-gray-500 mt-3 font-semibold uppercase tracking-wider">Securing Terminal...</span>
+        <RefreshCw className="w-8 h-8 text-brand-primary animate-spin" />
+        <span className="text-xs text-stone-500 mt-3 font-semibold uppercase tracking-wider font-mono">Securing Terminal...</span>
       </div>
     );
   }
 
-  // Role permissions
   const isKitchen = staffRecord.role === "kitchen";
   const isWaiter = staffRecord.role === "waiter";
   const isAdmin = staffRecord.role === "admin";
 
-  // KPIs
   const lowStockCount = ingredients.filter((i) => i.currentStock < i.lowStockThreshold).length;
   const activeOrders = orders.filter((o) => o.status !== "billed" && o.status !== "served");
   const occupiedTables = tables.filter((t) => t.status === "occupied").length;
@@ -234,31 +226,31 @@ export default function DashboardPage() {
     .reduce((sum, o) => sum + o.totalAmount, 0);
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-brand-deep">
       {/* Top Banner Navigation */}
-      <header className="bg-brand-dark border-b border-white/5 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+      <header className="bg-brand-dark border-b-2 border-brand-primary px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold font-display shadow-lg shadow-indigo-600/20">
+          <div className="w-8 h-8 rounded bg-brand-primary flex items-center justify-center text-white font-bold font-display shadow-md">
             P
           </div>
           <div>
-            <h1 className="font-bold text-white leading-tight font-display flex items-center gap-1.5">
-              PlateIQ Control Panel
-              <span className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-md flex items-center gap-1 uppercase">
-                <ShieldCheck className="w-3 h-3 text-indigo-400" /> {staffRecord.role}
+            <h1 className="font-bold text-white leading-tight font-display flex items-center gap-1.5 text-lg">
+              PLATEIQ Control Terminal
+              <span className="text-[9px] font-bold bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/35 px-2 py-0.5 rounded font-mono flex items-center gap-1 uppercase">
+                <ShieldCheck className="w-3.5 h-3.5" /> {staffRecord.role}
               </span>
             </h1>
-            <p className="text-[10px] text-gray-500">Authorized Operator: {staffRecord.name} ({staffRecord.email})</p>
+            <p className="text-[10px] text-stone-400 font-mono">Operator: {staffRecord.name} ({staffRecord.email})</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <a href="/" className="text-xs text-gray-400 hover:text-white transition-colors">
+          <a href="/" className="text-xs text-stone-400 hover:text-white transition-colors font-semibold">
             Customer Menu
           </a>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-semibold cursor-pointer border border-rose-500/10 hover:border-rose-500/30 px-3 py-1.5 rounded-lg bg-rose-500/5 transition-all"
+            className="flex items-center gap-1.5 text-xs text-brand-danger hover:text-[#d34734] font-semibold cursor-pointer border border-brand-danger/20 hover:border-brand-danger/40 px-3 py-1.5 rounded bg-brand-danger/5 transition-all"
           >
             <LogOut className="w-4 h-4" /> Sign Out
           </button>
@@ -268,9 +260,9 @@ export default function DashboardPage() {
       {/* Control center body */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Sidebar tabs */}
-        <aside className="w-full md:w-56 bg-brand-dark/50 border-b md:border-b-0 md:border-r border-white/5 p-4 flex flex-row md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible shrink-0">
+        <aside className="w-full md:w-56 bg-brand-dark border-b md:border-b-0 md:border-r border-stone-850 p-4 flex flex-row md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible shrink-0 shadow-md">
           {[
-            { id: "orders", label: "Orders Ledger", icon: ClipboardList, allowed: true },
+            { id: "orders", label: "Kitchen Ticket Rail", icon: ClipboardList, allowed: true },
             { id: "tables", label: "Occupancy Grid", icon: Layers, allowed: isAdmin || isWaiter },
             { id: "inventory", label: "Stock Ledger", icon: TrendingUp, allowed: isAdmin || isKitchen },
             { id: "staff", label: "Staff Roster", icon: Users, allowed: isAdmin },
@@ -285,10 +277,10 @@ export default function DashboardPage() {
                   setActiveTab(tab.id as any);
                   setStatusMessage(null);
                 }}
-                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
                   activeTab === tab.id
-                    ? "bg-indigo-600/15 text-indigo-400 border border-indigo-500/20 shadow-md shadow-indigo-600/5"
-                    : "text-gray-400 hover:bg-white/2 hover:text-white"
+                    ? "bg-brand-primary border-brand-primary text-white"
+                    : "text-stone-400 border-transparent hover:text-white hover:bg-stone-900"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -303,108 +295,143 @@ export default function DashboardPage() {
           
           {/* Status Message */}
           {statusMessage && (
-            <div className={`p-4 rounded-xl flex items-start gap-3 border animate-fade-in ${
+            <div className={`p-4 rounded border animate-fade-in flex items-start gap-3 ${
               statusMessage.type === "success" 
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
-                : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                ? "bg-brand-accent/15 border-brand-accent/35 text-[#cca043]" 
+                : "bg-brand-danger/10 border-brand-danger/20 text-brand-danger"
             }`}>
               {statusMessage.type === "success" ? (
-                <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <CheckCircle className="w-5 h-5 shrink-0 mt-0.5 text-brand-secondary" />
               ) : (
-                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-brand-danger" />
               )}
-              <span className="text-sm font-semibold">{statusMessage.text}</span>
+              <span className="text-xs font-bold font-mono">{statusMessage.text}</span>
             </div>
           )}
 
           {/* Quick Metrics Header Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass-panel p-4 rounded-xl flex flex-col justify-between border border-white/5">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Active Prep Load</span>
-              <span className="text-2xl font-extrabold text-white mt-1">{activeOrders.length} orders</span>
+            <div className="bg-brand-dark border border-stone-850 p-4 rounded flex flex-col justify-between">
+              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">Kitchen Load</span>
+              <span className="text-xl font-extrabold text-white mt-1">{activeOrders.length} tickets</span>
             </div>
             
-            <div className="glass-panel p-4 rounded-xl flex flex-col justify-between border border-white/5">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Low Stock Warnings</span>
-              <span className={`text-2xl font-extrabold mt-1 ${lowStockCount > 0 ? "text-amber-400 animate-pulse" : "text-white"}`}>
+            <div className="bg-brand-dark border border-stone-850 p-4 rounded flex flex-col justify-between">
+              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">Low Stocks</span>
+              <span className={`text-xl font-extrabold mt-1 ${lowStockCount > 0 ? "text-brand-secondary animate-pulse" : "text-white"}`}>
                 {lowStockCount} items
               </span>
             </div>
             
-            <div className="glass-panel p-4 rounded-xl flex flex-col justify-between border border-white/5">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Live Occupancy</span>
-              <span className="text-2xl font-extrabold text-white mt-1">{occupiedTables} / {tables.length} tables</span>
+            <div className="bg-brand-dark border border-stone-850 p-4 rounded flex flex-col justify-between">
+              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">Table Count</span>
+              <span className="text-xl font-extrabold text-white mt-1">{occupiedTables} / {tables.length} full</span>
             </div>
 
-            <div className="glass-panel p-4 rounded-xl flex flex-col justify-between border border-white/5">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Today's Revenue</span>
-              <span className="text-2xl font-extrabold text-emerald-400 mt-1">${todayRevenue.toFixed(2)}</span>
+            <div className="bg-brand-dark border border-stone-850 p-4 rounded flex flex-col justify-between">
+              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">Total Sales</span>
+              <span className="text-xl font-extrabold text-brand-secondary mt-1">${todayRevenue.toFixed(2)}</span>
             </div>
           </div>
 
-          {/* TAB 1: Orders (Kanban Workflow) */}
+          {/* TAB 1: KITCHEN TICKET RAIL */}
           {activeTab === "orders" && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white font-display">Active Kitchen Workflow</h2>
-                <span className="text-xs text-gray-500">Real-time status changes push directly to customer menu trackers</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-800 pb-3">
+                <h2 className="text-lg font-bold text-white font-display uppercase tracking-wider">Kitchen Ticket Rail</h2>
+                <span className="text-xs text-stone-400 font-mono italic">Orders slide and stamp as progress occurs</span>
               </div>
 
-              {/* Status categories grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {[
-                  { key: "placed", title: "Placed Requests", border: "border-indigo-500/20", text: "text-indigo-400" },
-                  { key: "preparing", title: "In Preparation", border: "border-amber-500/20", text: "text-amber-400" },
-                  { key: "ready", title: "Ready for Delivery", border: "border-cyan-500/20", text: "text-cyan-400" },
-                  { key: "served", title: "Served / Awaiting Bill", border: "border-emerald-500/20", text: "text-emerald-400" },
-                ].map((col) => {
-                  const colOrders = orders.filter((o) => o.status === col.key);
+              {/* Brushed Metal Slide Rail Visual */}
+              <div className="relative">
+                <div className="ticket-rail rounded-t-lg">
+                  {/* Clip nodes simulating hanging sliders */}
+                  <div className="ticket-rail-clip left-10" />
+                  <div className="ticket-rail-clip left-1/4" />
+                  <div className="ticket-rail-clip left-2/4" />
+                  <div className="ticket-rail-clip left-3/4" />
+                  <div className="ticket-rail-clip right-10" />
+                </div>
 
-                  return (
-                    <div key={col.key} className="space-y-4">
-                      <div className={`p-3 rounded-xl border ${col.border} bg-white/2 flex items-center justify-between`}>
-                        <span className={`text-xs font-bold font-display uppercase tracking-wider ${col.text}`}>{col.title}</span>
-                        <span className="text-[10px] font-bold bg-white/5 px-2 py-0.5 rounded text-gray-400">{colOrders.length}</span>
-                      </div>
+                {/* Horizontal Ticket Rail Slider */}
+                <div className="flex flex-row overflow-x-auto gap-6 py-6 px-4 bg-stone-900/40 border-x border-b border-stone-800 rounded-b-lg scrollbar-thin">
+                  {orders.filter(o => o.status !== "billed").length === 0 ? (
+                    <div className="w-full py-16 text-center text-xs text-stone-500 italic font-mono border border-dashed border-stone-800 rounded">
+                      Rail is empty — No active kitchen tickets.
+                    </div>
+                  ) : (
+                    orders
+                      .filter(o => o.status !== "billed")
+                      .map((order) => {
+                        const statusColors: { [key: string]: string } = {
+                          placed: "text-brand-primary border-brand-primary bg-brand-primary/10",
+                          preparing: "text-brand-secondary border-brand-secondary bg-brand-secondary/10",
+                          ready: "text-brand-accent border-brand-accent bg-brand-accent/10",
+                          served: "text-stone-500 border-stone-500 bg-stone-100",
+                        };
 
-                      <div className="space-y-3 max-h-[35rem] overflow-y-auto pr-1">
-                        {colOrders.length === 0 ? (
-                          <div className="text-center py-8 text-xs text-gray-600 border border-dashed border-white/5 rounded-xl">
-                            No orders in column
-                          </div>
-                        ) : (
-                          colOrders.map((order) => (
-                            <div key={order.id} className="glass-panel p-4 rounded-xl border border-white/5 space-y-4 shadow-sm hover:border-white/10 transition-colors">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <span className="text-[9px] font-semibold text-gray-500">T{order.tableId} | ID: #{order.id.slice(0, 5)}</span>
-                                  <h4 className="font-bold text-sm text-white mt-0.5">Table {order.tableId}</h4>
+                        return (
+                          <div 
+                            key={order.id} 
+                            className="parchment-ticket parchment-ticket-jagged rounded-t w-64 shrink-0 flex flex-col justify-between p-4 h-96 shadow-xl animate-ticket-punch relative overflow-hidden"
+                          >
+                            {/* Stamped Overlay for served order */}
+                            {order.status === "served" && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-white/20 backdrop-blur-3xs pointer-events-none z-10">
+                                <div className="stamp-overlay animate-stamp text-brand-primary border-brand-primary uppercase text-2xl px-4 py-1.5 border-4 tracking-widest font-black rounded-lg">
+                                  Served
                                 </div>
-                                <span className="text-[10px] text-indigo-400 font-bold">${order.totalAmount.toFixed(2)}</span>
+                              </div>
+                            )}
+
+                            <div className="space-y-4">
+                              {/* Ticket Header */}
+                              <div className="flex justify-between items-start font-mono text-[10px] border-b border-stone-300 pb-2">
+                                <div>
+                                  <span className="block font-bold">Ticket: #{order.id.slice(-4).toUpperCase()}</span>
+                                  <span className="block text-[8px] text-stone-500">
+                                    {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="block font-bold text-stone-800">TABLE {order.tableId}</span>
+                                  <span className="block text-[8px] text-stone-500">Sub: ${order.subtotal.toFixed(2)}</span>
+                                </div>
                               </div>
 
-                              <ul className="text-xs text-gray-400 space-y-1 divide-y divide-white/2">
+                              {/* Ticket Status Label */}
+                              <div className="flex justify-between items-center">
+                                <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${statusColors[order.status] || "text-stone-600 border-stone-300"}`}>
+                                  {order.status}
+                                </span>
+                                <span className="text-[11px] font-bold text-stone-900 font-mono">${order.totalAmount.toFixed(2)}</span>
+                              </div>
+
+                              {/* Roster of Items */}
+                              <ul className="space-y-1 text-xs text-stone-750 font-mono border-t border-dashed border-stone-300 pt-3">
                                 {order.items.map((item, idx) => (
-                                  <li key={idx} className="flex justify-between pt-1 first:pt-0">
+                                  <li key={idx} className="flex justify-between">
                                     <span>{item.name}</span>
-                                    <span className="font-semibold">x{item.quantity}</span>
+                                    <span className="font-bold">x{item.quantity}</span>
                                   </li>
                                 ))}
                               </ul>
+                            </div>
 
-                              {/* Button transitions (correction #7) */}
+                            {/* Action Button */}
+                            <div className="pt-4 border-t border-dashed border-stone-300">
                               <button
                                 onClick={() => handleTransitionOrder(order.id, order.status)}
                                 disabled={actionLoading === order.id}
-                                className={`w-full py-2 px-3 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
-                                  order.status === "placed" ? "bg-amber-600 hover:bg-amber-500 text-white" :
-                                  order.status === "preparing" ? "bg-cyan-600 hover:bg-cyan-500 text-white" :
-                                  order.status === "ready" ? "bg-emerald-600 hover:bg-emerald-500 text-white" :
-                                  "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                className={`w-full py-2 px-3 rounded text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 text-white ${
+                                  order.status === "placed" ? "bg-brand-primary hover:bg-[#a1402a]" :
+                                  order.status === "preparing" ? "bg-[#b08735] hover:bg-[#97732a]" :
+                                  order.status === "ready" ? "bg-brand-accent hover:bg-[#2e4d35]" :
+                                  "bg-stone-800 hover:bg-stone-700"
                                 }`}
                               >
                                 {actionLoading === order.id ? (
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
                                   <>
                                     <span>
@@ -416,20 +443,21 @@ export default function DashboardPage() {
                                 )}
                               </button>
                             </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: Tables Grid */}
+          {/* TAB 2: TABLES GRID */}
           {activeTab === "tables" && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold text-white font-display">Restaurant Occupancy Visual Grid</h2>
+              <div className="border-b border-stone-800 pb-3">
+                <h2 className="text-lg font-bold text-white font-display uppercase tracking-wider">Seating Occupancy Grid</h2>
+              </div>
               
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
                 {tables.map((table) => {
@@ -439,22 +467,22 @@ export default function DashboardPage() {
                   return (
                     <div 
                       key={table.id} 
-                      className={`glass-panel p-5 rounded-xl border flex flex-col justify-between h-40 transition-all ${
-                        isActive ? "border-rose-500/25 bg-rose-500/2" :
-                        isReserved ? "border-amber-500/25 bg-amber-500/2" :
-                        "border-white/5"
+                      className={`p-5 rounded border flex flex-col justify-between h-40 transition-all ${
+                        isActive ? "border-brand-primary bg-brand-primary/10 text-brand-primary" :
+                        isReserved ? "border-brand-secondary bg-brand-secondary/10 text-brand-secondary" :
+                        "border-stone-850 bg-brand-dark"
                       }`}
                     >
                       <div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Seats {table.capacity}</span>
+                        <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider font-mono">Seats {table.capacity}</span>
                         <h3 className="text-2xl font-black mt-1 font-display text-white">Table {table.tableNumber}</h3>
                       </div>
 
-                      <div className="space-y-2">
-                        <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                          isActive ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
-                          isReserved ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                          "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      <div className="space-y-2.5">
+                        <span className={`inline-block text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                          isActive ? "bg-brand-primary/25 border-brand-primary text-white" :
+                          isReserved ? "bg-brand-secondary/25 border-brand-secondary text-white" :
+                          "bg-stone-900 border-stone-800 text-stone-400"
                         }`}>
                           {table.status}
                         </span>
@@ -463,7 +491,7 @@ export default function DashboardPage() {
                           {table.status !== "free" && (
                             <button
                               onClick={() => handleTableStatus(table.id, "free")}
-                              className="text-[9px] font-bold uppercase text-emerald-400 bg-white/5 border border-white/5 hover:border-emerald-500/30 px-2 py-1 rounded cursor-pointer"
+                              className="text-[9px] font-bold uppercase text-brand-accent bg-stone-900 border border-stone-800 hover:border-brand-accent/50 px-2 py-1 rounded cursor-pointer transition-colors"
                             >
                               Free
                             </button>
@@ -471,7 +499,7 @@ export default function DashboardPage() {
                           {table.status !== "occupied" && (
                             <button
                               onClick={() => handleTableStatus(table.id, "occupied")}
-                              className="text-[9px] font-bold uppercase text-rose-400 bg-white/5 border border-white/5 hover:border-rose-500/30 px-2 py-1 rounded cursor-pointer"
+                              className="text-[9px] font-bold uppercase text-brand-primary bg-stone-900 border border-stone-800 hover:border-brand-primary/50 px-2 py-1 rounded cursor-pointer transition-colors"
                             >
                               Occupy
                             </button>
@@ -485,50 +513,48 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 3: Inventory Control */}
+          {/* TAB 3: INVENTORY LEDGER */}
           {activeTab === "inventory" && (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-white font-display">Live Ingredient Ledger & Control</h2>
-                  <p className="text-xs text-gray-500">Every restock is appended to the ledger; stocks falling below threshold auto-trigger alerts.</p>
-                </div>
+              <div className="border-b border-stone-800 pb-3">
+                <h2 className="text-lg font-bold text-white font-display uppercase tracking-wider">Ingredient Ledger</h2>
+                <p className="text-xs text-stone-400 font-mono italic mt-1">Every restock appends to the ledger; low levels generate warnings.</p>
               </div>
 
-              {/* Ingredients table */}
-              <div className="glass-panel rounded-xl overflow-hidden border border-white/5">
-                <table className="min-w-full text-left text-xs divide-y divide-white/5">
-                  <thead className="bg-brand-dark/40 text-gray-400 uppercase tracking-wider font-bold">
+              {/* Ingredients table in parchment style */}
+              <div className="bg-[#fcfaf7] text-stone-850 rounded overflow-hidden border border-stone-300 shadow-md">
+                <table className="min-w-full text-left text-xs divide-y divide-stone-300">
+                  <thead className="bg-[#f0ece6] text-stone-700 uppercase tracking-wider font-bold">
                     <tr>
                       <th className="px-6 py-4">Ingredient Name</th>
                       <th className="px-6 py-4">Stock Level</th>
                       <th className="px-6 py-4">Threshold</th>
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4">Restock Add</th>
-                      <th className="px-6 py-4">Sustainability Settings</th>
+                      <th className="px-6 py-4">Settings</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 text-gray-300">
+                  <tbody className="divide-y divide-stone-200 text-stone-850 font-mono">
                     {ingredients.map((ing) => {
                       const isLow = ing.currentStock < ing.lowStockThreshold;
                       const isOut = ing.currentStock === 0;
 
                       return (
-                        <tr key={ing.id} className="hover:bg-white/2">
-                          <td className="px-6 py-4 font-semibold text-white">{ing.name}</td>
-                          <td className="px-6 py-4 font-mono">
+                        <tr key={ing.id} className="hover:bg-stone-50 transition-colors">
+                          <td className="px-6 py-4 font-sans font-bold text-stone-900">{ing.name}</td>
+                          <td className="px-6 py-4">
                             {ing.currentStock.toFixed(1)} {ing.unit}
                           </td>
-                          <td className="px-6 py-4 font-mono text-gray-500">
+                          <td className="px-6 py-4 text-stone-500">
                             {ing.lowStockThreshold} {ing.unit}
                           </td>
                           <td className="px-6 py-4">
                             {isOut ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wider">Out of Stock</span>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-brand-danger/10 text-brand-danger border border-brand-danger/30 uppercase tracking-wider">Out of Stock</span>
                             ) : isLow ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider animate-pulse">Low Stock</span>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#b08735]/10 text-[#a2782b] border border-[#a2782b]/35 uppercase tracking-wider">Low Stock</span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">Healthy</span>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-brand-accent/15 text-brand-accent border border-brand-accent/35 uppercase tracking-wider">Healthy</span>
                             )}
                           </td>
                           <td className="px-6 py-4">
@@ -538,25 +564,25 @@ export default function DashboardPage() {
                                 placeholder="Qty"
                                 value={restockValues[ing.id] || ""}
                                 onChange={(e) => setRestockValues({ ...restockValues, [ing.id]: e.target.value })}
-                                className="w-16 bg-brand-deep/50 border border-white/5 rounded-lg px-2 py-1 text-xs text-white"
+                                className="w-16 bg-white border border-stone-300 rounded px-2.5 py-1 text-xs text-stone-850 focus:outline-none"
                               />
                               <button
                                 onClick={() => handleRestock(ing.id)}
                                 disabled={actionLoading === `restock_${ing.id}`}
-                                className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-50"
+                                className="p-1.5 rounded bg-brand-primary hover:bg-[#a1402a] text-white cursor-pointer disabled:opacity-50"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
-                          <td className="px-6 py-4 space-y-2">
+                          <td className="px-6 py-4 space-y-2 text-[10px]">
                             <div className="flex items-center gap-3">
-                              <label className="flex items-center gap-1.5 text-[10px] text-gray-400 font-semibold cursor-pointer">
+                              <label className="flex items-center gap-1.5 font-bold text-stone-700 cursor-pointer">
                                 <input
                                   type="checkbox"
                                   checked={ing.isSurplus || false}
                                   onChange={() => handleUpdateSurplus(ing.id, ing.isSurplus || false)}
-                                  className="rounded border-white/10 bg-brand-deep text-indigo-600"
+                                  className="rounded border-stone-300 bg-white text-brand-primary"
                                 />
                                 Surplus (15% Off Recipes)
                               </label>
@@ -567,11 +593,11 @@ export default function DashboardPage() {
                                 type="date"
                                 value={expiryValues[ing.id] || (ing.expiryDate ? new Date(ing.expiryDate).toISOString().split("T")[0] : "")}
                                 onChange={(e) => setExpiryValues({ ...expiryValues, [ing.id]: e.target.value })}
-                                className="bg-brand-deep/50 border border-white/5 rounded-lg px-1.5 py-0.5 text-[10px] text-white"
+                                className="bg-white border border-stone-300 rounded px-1 py-0.5 text-[10px] text-stone-850 focus:outline-none"
                               />
                               <button
                                 onClick={() => handleUpdateExpiry(ing.id)}
-                                className="p-1 rounded bg-white/5 border border-white/5 hover:border-indigo-500/50 text-[10px] cursor-pointer"
+                                className="p-1 rounded bg-[#f0ece6] hover:bg-stone-300 border border-stone-300 text-[9px] font-bold text-stone-700 cursor-pointer"
                               >
                                 Save Expiry
                               </button>
@@ -586,53 +612,53 @@ export default function DashboardPage() {
 
               {/* Alert notifications sidebar list */}
               {notifications.length > 0 && (
-                <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-4">
-                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                    <Bell className="w-4 h-4 text-amber-400" />
+                <div className="bg-brand-dark p-5 rounded border border-stone-850 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-stone-800 pb-2">
+                    <Bell className="w-4 h-4 text-brand-secondary" />
                     <h3 className="font-bold text-xs uppercase tracking-wider text-white">Live Stock Alerts Log</h3>
                   </div>
 
                   <div className="space-y-3 max-h-40 overflow-y-auto">
                     {notifications.filter(n => !n.read).map((notif) => (
-                      <div key={notif.id} className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 flex items-start justify-between gap-4 text-[11px]">
-                        <div className="text-amber-300 font-semibold">
+                      <div key={notif.id} className="p-3 rounded bg-brand-danger/10 border border-brand-danger/25 flex items-start justify-between gap-4 text-[11px]">
+                        <div className="text-stone-300 font-bold">
                           {notif.message}
                         </div>
                         <button
                           onClick={() => markNotificationRead(notif.id)}
-                          className="text-[9px] font-bold uppercase text-gray-500 hover:text-white cursor-pointer shrink-0"
+                          className="text-[9px] font-bold uppercase text-brand-danger hover:text-red-400 cursor-pointer shrink-0"
                         >
                           Dismiss
                         </button>
                       </div>
                     ))}
                     {notifications.filter(n => !n.read).length === 0 && (
-                      <div className="text-xs text-gray-600 italic">No active alert logs.</div>
+                      <div className="text-xs text-stone-500 italic font-mono">No active alerts.</div>
                     )}
                   </div>
                 </div>
               )}
 
               {/* Menu availability manual override tool */}
-              <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-4">
-                <h3 className="font-bold text-sm font-display text-white">Staff Menu Overrides (86/Disable Toggles)</h3>
+              <div className="bg-brand-dark p-5 rounded border border-stone-850 space-y-4">
+                <h3 className="font-bold text-sm font-display text-white uppercase tracking-wider">Manual Menu Disable (86 Override)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {menuItems.map((item) => (
-                    <div key={item.id} className="p-4 rounded-xl bg-brand-deep/50 border border-white/5 flex flex-col justify-between h-28">
+                    <div key={item.id} className="p-4 rounded bg-stone-900/60 border border-stone-800 flex flex-col justify-between h-28">
                       <div>
                         <h4 className="font-bold text-xs text-white leading-snug">{item.name}</h4>
-                        <span className="text-[9px] text-gray-500">{item.category}</span>
+                        <span className="text-[9px] text-stone-500 uppercase font-mono">{item.category}</span>
                       </div>
                       <div className="flex justify-between items-center pt-2">
-                        <span className={`text-[9px] font-semibold ${item.isAvailable ? "text-emerald-400" : "text-rose-400"}`}>
+                        <span className={`text-[9px] font-bold uppercase ${item.isAvailable ? "text-brand-secondary" : "text-brand-danger"}`}>
                           {item.isAvailable ? "Available" : "Sold Out"}
                         </span>
                         <button
                           onClick={() => handleMenuOverride(item.id, item.isAvailable)}
-                          className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase cursor-pointer transition-colors border ${
+                          className={`px-3 py-1 rounded text-[9px] font-bold uppercase cursor-pointer transition-colors border ${
                             item.isAvailable 
-                              ? "bg-rose-500/15 border-rose-500/20 text-rose-400 hover:bg-rose-500/30" 
-                              : "bg-emerald-500/15 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                              ? "bg-brand-danger/10 border-brand-danger/30 text-brand-danger hover:bg-brand-danger/20" 
+                              : "bg-brand-secondary/10 border-brand-secondary/30 text-brand-secondary hover:bg-brand-secondary/20"
                           }`}
                         >
                           {item.isAvailable ? "86 Dish" : "Restore"}
@@ -645,14 +671,16 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 4: Staff Roster */}
+          {/* TAB 4: STAFF ROSTER */}
           {activeTab === "staff" && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold text-white font-display">Staff Roster & Authorizations</h2>
+              <div className="border-b border-stone-800 pb-3">
+                <h2 className="text-lg font-bold text-white font-display uppercase tracking-wider">Staff Roster</h2>
+              </div>
               
-              <div className="glass-panel rounded-xl overflow-hidden border border-white/5">
-                <table className="min-w-full text-left text-xs divide-y divide-white/5">
-                  <thead className="bg-brand-dark/40 text-gray-400 uppercase tracking-wider font-bold">
+              <div className="bg-[#fcfaf7] text-stone-850 rounded border border-stone-300 shadow-md">
+                <table className="min-w-full text-left text-xs divide-y divide-stone-300">
+                  <thead className="bg-[#f0ece6] text-stone-700 uppercase tracking-wider font-bold">
                     <tr>
                       <th className="px-6 py-4">Name</th>
                       <th className="px-6 py-4">Email</th>
@@ -660,21 +688,21 @@ export default function DashboardPage() {
                       <th className="px-6 py-4">ID Profile</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 text-gray-300">
+                  <tbody className="divide-y divide-stone-200 text-stone-850 font-mono">
                     {staffRoster.map((rosterItem) => (
                       <tr key={rosterItem.id}>
-                        <td className="px-6 py-4 font-semibold text-white">{rosterItem.name}</td>
+                        <td className="px-6 py-4 font-sans font-bold text-stone-900">{rosterItem.name}</td>
                         <td className="px-6 py-4">{rosterItem.email}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${
-                            rosterItem.role === "admin" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
-                            rosterItem.role === "kitchen" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-                            "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-wider ${
+                            rosterItem.role === "admin" ? "bg-brand-primary/10 text-brand-primary border-brand-primary/30" :
+                            rosterItem.role === "kitchen" ? "bg-brand-secondary/10 text-brand-secondary border-brand-secondary/30" :
+                            "bg-brand-accent/15 text-brand-accent border-brand-accent/35"
                           }`}>
                             {rosterItem.role}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-mono text-[10px] text-gray-500">{rosterItem.id}</td>
+                        <td className="px-6 py-4 text-[10px] text-stone-500">{rosterItem.id}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -683,18 +711,19 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 5: Sales & Analytics */}
+          {/* TAB 5: SALES & ANALYTICS */}
           {activeTab === "analytics" && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold text-white font-display">Sales Performance & Operations Insights</h2>
+              <div className="border-b border-stone-800 pb-3">
+                <h2 className="text-lg font-bold text-white font-display uppercase tracking-wider">Operational Insights</h2>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Popular items */}
-                <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-4">
-                  <h3 className="font-bold text-sm text-white font-display uppercase tracking-wider text-indigo-400">Popular Menu Items</h3>
-                  <div className="space-y-3">
+                <div className="bg-[#fcfaf7] text-stone-850 p-5 rounded border border-stone-300 shadow-md space-y-4">
+                  <h3 className="font-bold text-sm text-brand-primary font-display uppercase tracking-wider">Popular Menu Items</h3>
+                  <div className="space-y-3 font-mono text-xs">
                     {menuItems.map((item) => {
-                      // Calculate quantity sold
                       const qtySold = orders
                         .filter(o => o.status === "billed")
                         .reduce((sum, o) => {
@@ -703,9 +732,9 @@ export default function DashboardPage() {
                         }, 0);
 
                       return (
-                        <div key={item.id} className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-white">{item.name}</span>
-                          <span className="font-mono text-gray-400">{qtySold} servings sold</span>
+                        <div key={item.id} className="flex items-center justify-between border-b border-dashed border-stone-200 pb-2">
+                          <span className="font-sans font-bold text-stone-900">{item.name}</span>
+                          <span className="text-stone-500">{qtySold} sold</span>
                         </div>
                       );
                     })}
@@ -713,12 +742,11 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Peak times */}
-                <div className="glass-panel p-5 rounded-xl border border-white/5 space-y-4">
-                  <h3 className="font-bold text-sm text-white font-display uppercase tracking-wider text-cyan-400">Peak Ordering Hours</h3>
-                  <div className="space-y-3">
+                <div className="bg-[#fcfaf7] text-stone-850 p-5 rounded border border-stone-300 shadow-md space-y-4">
+                  <h3 className="font-bold text-sm text-brand-secondary font-display uppercase tracking-wider">Peak Ordering Hours</h3>
+                  <div className="space-y-3 font-mono text-xs">
                     {Array.from({ length: 4 }).map((_, idx) => {
                       const hr = 18 + idx; // 6 PM to 9 PM
-                      // count orders in this hour slot
                       const count = orders.filter((o) => {
                         const date = o.createdAt instanceof Date ? o.createdAt : new Date(o.createdAt);
                         return date.getHours() === hr;
@@ -726,14 +754,14 @@ export default function DashboardPage() {
 
                       return (
                         <div key={hr} className="flex items-center gap-4 text-xs">
-                          <span className="w-12 font-semibold text-white">{hr}:00</span>
-                          <div className="flex-1 h-2.5 bg-white/5 rounded-full overflow-hidden">
+                          <span className="w-12 font-bold text-stone-700">{hr}:00</span>
+                          <div className="flex-1 h-3.5 bg-stone-200 rounded overflow-hidden border border-stone-300">
                             <div 
-                              className="h-full bg-cyan-500 rounded-full" 
+                              className="h-full bg-brand-secondary" 
                               style={{ width: `${Math.min(100, count * 20)}%` }}
                             />
                           </div>
-                          <span className="w-12 text-right text-gray-400 font-mono">{count} orders</span>
+                          <span className="w-16 text-right text-stone-500">{count} orders</span>
                         </div>
                       );
                     })}
