@@ -393,9 +393,8 @@ export default function GuestPage() {
                         return (
                           <div key={item.id} className="border border-stone-800 bg-[#262322] p-4 rounded-lg flex flex-col justify-between space-y-4">
                             <div className="flex gap-4">
-                              <div className="w-20 h-20 shrink-0 bg-stone-850 rounded overflow-hidden relative">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                              <div className="w-20 h-20 shrink-0 rounded overflow-hidden relative flex items-center justify-center bg-stone-900 border border-stone-700" style={{fontSize: '2rem'}}>
+                                {({'Starters':'🥗','Mains':'🍛','Breads':'🫓','Desserts':'🍮','Beverages':'🥛'} as Record<string,string>)[item.category] || '🍽️'}
                                 <div className="absolute top-1 left-1 bg-brand-primary text-white font-bold text-[8px] px-1.5 py-0.5 rounded uppercase">
                                   Rescue
                                 </div>
@@ -470,9 +469,8 @@ export default function GuestPage() {
                     {filteredMenuItems.map((item) => (
                       <div key={item.id} className="border border-stone-800 bg-[#262322] p-4 rounded-lg flex flex-col justify-between space-y-4">
                         <div className="flex gap-4">
-                          <div className="w-20 h-20 shrink-0 bg-stone-850 rounded overflow-hidden relative">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                          <div className="w-20 h-20 shrink-0 rounded overflow-hidden relative flex items-center justify-center bg-stone-900 border border-stone-700" style={{fontSize: '2rem'}}>
+                            {({'Starters':'🥗','Mains':'🍛','Breads':'🫓','Desserts':'🍮','Beverages':'🥛'} as Record<string,string>)[item.category] || '🍽️'}
                             {!item.isAvailable && (
                               <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
                                 <span className="bg-brand-danger text-white font-bold text-[8px] uppercase tracking-wider py-0.5 px-1.5 rounded">
