@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getDb } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { getStaffRecord, logout, StaffMember, subscribeToAuth } from "@/services/authService";
 import { subscribeToAllOrders, updateOrderStatus, Order } from "@/services/orderService";
@@ -82,8 +84,6 @@ export default function DashboardPage() {
     const unsubNotifications = subscribeToNotifications(setNotifications);
 
     // Fetch staff list for roster
-    const { getDb } = require("@/lib/firebase");
-    const { collection, getDocs } = require("firebase/firestore");
     getDocs(collection(getDb(), "staff")).then((snap: any) => {
       const roster: any[] = [];
       snap.forEach((doc: any) => {
