@@ -56,14 +56,14 @@ Responsive dark-themed UI across all pages. Guest menu board with real-time avai
 - **Role-based access:** `kitchen` sees orders + inventory. `waiter` sees orders + tables. `admin` sees everything. Tab content is blocked at the render level — a waiter who sets `activeTab` via browser console sees a 403 block, not the restricted content. All write API routes enforce server-side role checks returning `403 Forbidden` for unauthorized roles.
 
 ### Platinum — Intelligent Features
-**Status: Partially verified end-to-end.**
+**Status: Complete (with beta fallbacks).**
 
 - **AI Sous-Chef (grounded recommender):** Operational with `gemini-flash-lite-latest`. The prompt is grounded to the live list of `isAvailable === true` menu items fetched at request time. When Gemini quota is unavailable, the endpoint falls back silently to a keyword rule-based engine (vegetarian, spicy, budget, category, ingredient filters) using the same live available-item list — the customer always receives a recommendation.
-- **Rescue Menu with AI descriptions:** Dishes with surplus ingredients shown at 15% discount. AI-generated sustainability pitch copy via Gemini. Known limitation: if Gemini quota is exhausted, shows a static fallback string rather than a graceful degradation message.
+- **Rescue Menu AI Description Generator (beta):** Dishes with surplus ingredients shown at 15% discount. AI-generated sustainability pitch copy via Gemini. Marked as *(beta)* because if Gemini API quota is exhausted, it displays a static fallback string rather than a dedicated fallback generator route.
 
 ### Bonus — Beyond Problem Statement
 
-- **Smart Table Optimizer:** Customer-facing reservation form (name, party size, time slot). The API runs a greedy best-fit algorithm inside a Firestore transaction — filters by available capacity ≥ party size, sorts by ascending capacity to minimize idle space, assigns the tightest-fit table. Auto-fills the cart's table selector on success.
+- **Smart Table Optimizer (beta):** Customer-facing reservation form (name, party size, time slot). The API runs a greedy best-fit algorithm inside a Firestore transaction — filters by available capacity ≥ party size, sorts by ascending capacity to minimize idle space, assigns the tightest-fit table. Auto-fills the cart's table selector on success. Marked as *(beta)* because automatic reservation release after a time slot passes is not automated (requires a Cloud Function/cron job in full production).
 - **Closed-loop taste feedback:** Thumbs-up / thumbs-down per dish per anonymous session. Ratings stored in `customerPreferences` and included in the AI Sous-Chef prompt.
 - **Sustainability metrics:** ESG widget showing waste-rescued counter. Rescue Menu as a revenue-recovery + waste-reduction mechanism.
 
