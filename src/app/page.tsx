@@ -30,9 +30,11 @@ import {
 } from "@/services/feedbackService";
 import { getCustomerSessionId } from "@/lib/session";
 import { callAISousChef, generateRescueDescription } from "@/services/aiService";
+import { useToast } from "@/components/Toast";
 
 export default function GuestPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [customerId, setCustomerId] = useState("");
 
   const formatCurrency = (val: number) => {
@@ -188,6 +190,7 @@ export default function GuestPage() {
   const handlePlaceOrder = async () => {
     if (!selectedTable) {
       setOrderError("Please select your table number.");
+      showToast("Please select your table number.", "error");
       return;
     }
     setOrderError("");
@@ -202,11 +205,14 @@ export default function GuestPage() {
       await placeOrder(selectedTable, customerId, orderItems);
       setCart({});
       setCartOpen(false);
+      showToast("Order ticket sent to kitchen! Stock deducted live.", "success");
       const tracker = document.getElementById("order-tracker");
       if (tracker) tracker.scrollIntoView({ behavior: "smooth" });
     } catch (err: any) {
       console.error(err);
-      setOrderError(err.message || "Failed to place order. Check stock availability.");
+      const msg = err.message || "Failed to place order. Check stock availability.";
+      setOrderError(msg);
+      showToast(msg, "error");
     } finally {
       setPlacing(false);
     }
@@ -237,6 +243,7 @@ export default function GuestPage() {
       await submitFeedback(customerId, menuItemId, rating);
       setRatedDishes((prev) => new Set([...prev, menuItemId]));
       refreshPreferences();
+      showToast(rating === "up" ? "Dish liked! Taste profile updated." : "Dish feedback recorded.", "info");
     } catch (err) {
       console.error(err);
     }
@@ -244,7 +251,7 @@ export default function GuestPage() {
 
   // Smart Table Booking via optimizer (Task 4)
   const handleBookTable = async () => {
-    if (!bookingName.trim()) { setBookingError("Please enter your name."); return; }
+    if (!bookingName.trim()) { setBookingError("Please enter your name."); showToast("Please enter your name.", "error"); return; }
     setBookingError("");
     setBookingLoading(true);
     setBookingResult(null);
@@ -258,8 +265,11 @@ export default function GuestPage() {
       if (!res.ok) throw new Error(data.error || "Booking failed.");
       setBookingResult({ tableNumber: data.table.tableNumber, tableId: data.table.id });
       setSelectedTable(String(data.table.tableNumber));
+      showToast(`Table ${data.table.tableNumber} assigned by optimizer!`, "success");
     } catch (err: any) {
-      setBookingError(err.message || "Could not assign a table. Please try again.");
+      const msg = err.message || "Could not assign a table. Please try again.";
+      setBookingError(msg);
+      showToast(msg, "error");
     } finally {
       setBookingLoading(false);
     }

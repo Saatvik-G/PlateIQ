@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Arvo, Cabin } from "next/font/google";
 import { ensureSeeded } from "@/lib/startupSeed";
+import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
 const arvo = Arvo({
@@ -43,9 +44,11 @@ export default async function RootLayout({
       className={`${arvo.variable} ${cabin.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-brand-deep text-parchment-dark flex flex-col font-sans selection:bg-rust selection:text-white">
-        <main className="flex-1 flex flex-col">
-          {children}
-        </main>
+        <ToastProvider>
+          <main className="flex-1 flex flex-col">
+            {children}
+          </main>
+        </ToastProvider>
       </body>
     </html>
   );
