@@ -30,17 +30,25 @@ This means that if Paneer Butter Masala, Tandoori Paneer Tikka, and Rasmalai all
 
 ```mermaid
 graph TD
-    Client[Guest / Staff Client] -->|Real-time Snapshot Listeners| Firestore[(Firebase Firestore DB)]
-    Client -->|HTTP POST Request| API[Next.js Server API Routes]
-    API -->|Firebase Admin SDK| Transaction[Atomic Transaction Engine]
-    
-    subgraph Transaction Steps
-        Transaction -->|1. Deduct Stock| Ing[Ingredients Collection]
-        Transaction -->|2. Append Record| Ledger[Inventory Ledger Collection]
-        Transaction -->|3. Menu Sweep| Menu[MenuItems Collection]
-        Transaction -->|4. Generate Order| Orders[Orders Collection]
-    end
-    
+    Client[Guest / Staff Client]
+    API[Next.js Server API Routes]
+    Admin[Firebase Admin SDK]
+    Firestore[(Firebase Firestore DB)]
+
+    Client -->|HTTP POST Request| API
+    API --> Admin
+    Admin --> Transaction[Atomic Transaction Engine]
+
+    Transaction -->|1. Deduct Stock| Ing[Ingredients Collection]
+    Transaction -->|2. Append Record| Ledger[Inventory Ledger Collection]
+    Transaction -->|3. Menu Sweep| Menu[MenuItems Collection]
+    Transaction -->|4. Generate Order| Orders[Orders Collection]
+
+    Ing --> Firestore
+    Ledger --> Firestore
+    Menu --> Firestore
+    Orders --> Firestore
+
     Firestore -->|Live Push onSnapshot| Client
 ```
 
