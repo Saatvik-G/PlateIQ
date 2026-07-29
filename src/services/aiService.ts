@@ -1,4 +1,11 @@
-export async function callAISousChef(query: string, customerId: string): Promise<string> {
+export interface SousChefResponse {
+  recommendation: string;
+  isFallback: boolean;
+  source: string;
+  model: string;
+}
+
+export async function callAISousChef(query: string, customerId: string): Promise<SousChefResponse> {
   const response = await fetch("/api/sous-chef", {
     method: "POST",
     headers: {
@@ -13,7 +20,12 @@ export async function callAISousChef(query: string, customerId: string): Promise
   }
 
   const data = await response.json();
-  return data.recommendation;
+  return {
+    recommendation: data.recommendation,
+    isFallback: !!data.isFallback,
+    source: data.source || "gemini-2.0-flash",
+    model: data.model || "gemini-2.0-flash",
+  };
 }
 
 export async function generateRescueDescription(menuItemId: string, itemName: string, ingredients: string[]): Promise<string> {

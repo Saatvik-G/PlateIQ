@@ -61,7 +61,7 @@ export default function GuestPage() {
   
   // AI Sous-Chef state
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<{ sender: "user" | "ai"; text: string }[]>([
+  const [chatMessages, setChatMessages] = useState<{ sender: "user" | "ai"; text: string; isFallback?: boolean; source?: string }[]>([
     { sender: "ai", text: "Hello! I am your AI Sous-Chef. Ask me anything about the menu, dietary options, or what matches your taste!" }
   ]);
   const [aiLoading, setAiLoading] = useState(false);
@@ -228,10 +228,20 @@ export default function GuestPage() {
     setAiLoading(true);
 
     try {
-      const aiReply = await callAISousChef(userText, customerId);
-      setChatMessages((prev) => [...prev, { sender: "ai", text: aiReply }]);
+      const res = await callAISousChef(userText, customerId);
+      setChatMessages((prev) => [...prev, {
+        sender: "ai",
+        text: res.recommendation,
+        isFallback: res.isFallback,
+        source: res.source
+      }]);
     } catch (err: any) {
-      setChatMessages((prev) => [...prev, { sender: "ai", text: err.message || "Sorry, I ran into an error processing that. Please try again." }]);
+      setChatMessages((prev) => [...prev, {
+        sender: "ai",
+        text: err.message || "Sorry, I ran into an error processing that. Please try again.",
+        isFallback: true,
+        source: "error"
+      }]);
     } finally {
       setAiLoading(false);
     }
@@ -658,12 +668,17 @@ export default function GuestPage() {
             <div className="h-56 overflow-y-auto space-y-3 p-1 rounded bg-[#f5efe4] border border-stone-200 text-[11px] leading-relaxed">
               {chatMessages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] p-2 rounded shadow-xs ${
+                  <div className={`max-w-[85%] p-2 rounded shadow-xs relative ${
                     msg.sender === "user" 
                       ? "bg-brand-primary text-white rounded-tr-none" 
                       : "bg-[#faf9f6] border border-stone-200 text-stone-800 rounded-tl-none"
                   }`}>
                     {msg.text}
+                    {msg.isFallback && (
+                      <div className="mt-1 text-[8px] font-mono font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded px-1.5 py-0.5 inline-flex items-center gap-1">
+                        <span>⚡ Fallback: Rule Engine</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
