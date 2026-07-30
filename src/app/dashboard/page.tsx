@@ -12,7 +12,7 @@ import { subscribeToMenu, MenuItem, overrideMenuAvailability } from "@/services/
 import { useToast } from "@/components/Toast";
 import { 
   ClipboardList, Users, Layers, TrendingUp, Bell, LogOut, CheckCircle, 
-  AlertTriangle, RefreshCw, Plus, Calendar, AlertCircle, ShoppingBag, ShieldCheck, Printer, BarChart3, Clock, PackageCheck, FileText, Check
+  AlertTriangle, RefreshCw, Plus, Calendar, AlertCircle, ShoppingBag, ShieldCheck, Printer, BarChart3, Clock, PackageCheck, FileText, Check, ArrowRight
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -51,6 +51,8 @@ export default function DashboardPage() {
   const [expiryValues, setExpiryValues] = useState<{ [ingId: string]: string }>({});
   // Bill modal state
   const [billOrder, setBillOrder] = useState<Order | null>(null);
+  const [paymentState, setPaymentState] = useState<"idle" | "processing" | "confirmed">("idle");
+  const [paymentAuthCode, setPaymentAuthCode] = useState<string>("");
 
   // Admin Modal: Add New Ingredient
   const [showAddIngModal, setShowAddIngModal] = useState(false);
@@ -938,41 +940,91 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="px-5 py-4 flex flex-col gap-2">
-              <button
-                onClick={() => handlePrintReceipt(billOrder)}
-                className="w-full py-2 px-3 text-xs font-bold border border-stone-300 bg-stone-100 hover:bg-stone-200 rounded text-stone-800 flex items-center justify-center gap-2 cursor-pointer transition-all"
-              >
-                <Printer className="w-3.5 h-3.5" /> Print Thermal Receipt / PDF
-              </button>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setBillOrder(null)}
-                  className="flex-1 py-2 text-xs font-semibold border border-stone-300 rounded text-stone-600 hover:bg-stone-100 cursor-pointer transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    setActionLoading(billOrder.id);
-                    setBillOrder(null);
-                    try {
-                      await updateOrderStatus(billOrder.id, "billed");
-                      showToast(`Order #${billOrder.id.slice(-4).toUpperCase()} billed and closed!`, "success");
-                    } catch (err: any) {
-                      showToast(err.message || "Failed to close bill.", "error");
-                    } finally {
-                      setActionLoading(null);
-                    }
-                  }}
-                  className="flex-1 py-2 text-xs font-bold bg-brand-primary text-white rounded hover:bg-[#a1402a] cursor-pointer transition-all"
-                >
-                  Confirm &amp; Close Bill
-                </button>
+            {/* Simulated Payment Gateway Processing Modal Overlay */}
+            {paymentState !== "idle" ? (
+              <div className="p-8 text-center space-y-5 bg-[#fcfaf7]">
+                {paymentState === "processing" ? (
+                  <div className="space-y-4 py-4 animate-fade-in">
+                    <div className="w-16 h-16 rounded-full bg-brand-primary/10 border-2 border-brand-primary flex items-center justify-center mx-auto text-brand-primary">
+                      <RefreshCw className="w-8 h-8 animate-spin" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-mono font-bold uppercase tracking-widest text-stone-500">PlateIQ Express Gateway</p>
+                      <h3 className="text-base font-bold font-display text-stone-900 uppercase">Processing Payment...</h3>
+                      <p className="text-xs text-brand-primary font-bold font-mono">{formatCurrency(billOrder.totalAmount)}</p>
+                    </div>
+                    <div className="p-2.5 rounded bg-stone-100 border border-stone-300 text-[10px] font-mono text-stone-600">
+                      <span>Simulating NFC / Card Terminal Authorization</span>
+                      <span className="block text-[9px] text-stone-400 mt-0.5">5s Demo Confirmation Protocol</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 py-4 animate-slide-up">
+                    <div className="w-16 h-16 rounded-full bg-brand-secondary/15 border-2 border-brand-secondary flex items-center justify-center mx-auto text-brand-secondary">
+                      <CheckCircle className="w-8 h-8 animate-bounce" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-mono font-bold uppercase tracking-widest text-brand-secondary">Transaction Approved</p>
+                      <h3 className="text-base font-bold font-display text-stone-900 uppercase">Payment Confirmed!</h3>
+                      <p className="text-xs font-mono text-stone-600 font-semibold">{paymentAuthCode}</p>
+                    </div>
+                    <div className="p-2.5 rounded bg-brand-secondary/10 border border-brand-secondary/30 text-[11px] font-mono text-brand-secondary font-bold">
+                      <span>Amount Received: {formatCurrency(billOrder.totalAmount)}</span>
+                      <span className="block text-[9px] font-normal text-stone-600 mt-0.5">Auto-closing & finalizing order ticket...</span>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              /* Actions */
+              <div className="px-5 py-4 flex flex-col gap-2">
+                <button
+                  onClick={() => handlePrintReceipt(billOrder)}
+                  className="w-full py-2 px-3 text-xs font-bold border border-stone-300 bg-stone-100 hover:bg-stone-200 rounded text-stone-800 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Print Thermal Receipt / PDF
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setBillOrder(null);
+                      setPaymentState("idle");
+                    }}
+                    className="flex-1 py-2 text-xs font-semibold border border-stone-300 rounded text-stone-600 hover:bg-stone-100 cursor-pointer transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPaymentState("processing");
+                      setTimeout(() => {
+                        setPaymentState("confirmed");
+                        setPaymentAuthCode(`PAY-${Math.floor(100000 + Math.random() * 900000)}`);
+                      }, 2500);
+
+                      setTimeout(async () => {
+                        setActionLoading(billOrder.id);
+                        try {
+                          await updateOrderStatus(billOrder.id, "billed");
+                          showToast(`Order #${billOrder.id.slice(-4).toUpperCase()} payment confirmed & closed!`, "success");
+                        } catch (err: any) {
+                          showToast(err.message || "Failed to close bill.", "error");
+                        } finally {
+                          setActionLoading(null);
+                          setBillOrder(null);
+                          setPaymentState("idle");
+                        }
+                      }, 4500);
+                    }}
+                    className="flex-1 py-2 text-xs font-bold bg-brand-primary text-white rounded hover:bg-[#a1402a] cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <span>Process Payment</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

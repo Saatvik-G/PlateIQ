@@ -86,7 +86,7 @@ sequenceDiagram
 | Database | Firebase Firestore (Real-Time Listeners + Admin SDK Transactions) |
 | Authentication | Firebase Auth (Google OAuth 2.0, Passwordless Email Magic Link, Email/Password) |
 | Server API | Next.js API Routes (9 routes, all writes via Admin SDK) |
-| AI Recommender | Google Gemini (`gemini-flash-lite-latest` via `@google/generative-ai` SDK) |
+| AI Recommender | Google Gemini (`gemini-2.0-flash` via `@google/generative-ai` SDK) |
 | Deployment | Vercel (Production Environment) |
 | Services Tier | Free tier only — 100% no billing profile attached |
 
@@ -105,6 +105,7 @@ Responsive dark-themed UI across all pages. Guest menu board with real-time avai
 - **Menu & Availability:** Live Firestore snapshot on the guest page; availability is recomputed server-side on every order and restock.
 - **Ordering:** Customers browse the menu, add items to a cart, select a table, and submit an order. The order placement API runs an atomic transaction (stock deduction + availability sweep + ETA calculation).
 - **Billing & Thermal Receipts:** The `billed` status is fully reachable through the UI. Staff can view the itemized bill modal (subtotal, tax %, service charge %, grand total) and print/download an authentic Bistro thermal paper receipt via window print stream.
+- **Simulated Payment Confirmation Step (beta):** A simulated NFC / Card payment gateway checkout window displaying payment processing status and authorization codes before finalizing ticket billing. Marked as *(beta)* because it is a mocked demo simulation rather than a live payment gateway integration (Stripe/Razorpay).
 - **Notifications & Toasts:** Low-stock threshold alerts are written server-side and displayed in the staff dashboard and toast notification feed.
 
 ### 🥇 Gold — Management Dashboard
@@ -120,7 +121,7 @@ Responsive dark-themed UI across all pages. Guest menu board with real-time avai
 ### 💎 Platinum — Intelligent Features
 **Status: Complete (with beta fallbacks).**
 
-- **AI Sous-Chef (grounded recommender):** Operational with `gemini-flash-lite-latest`. The prompt is grounded to the live list of `isAvailable === true` menu items. When Gemini API quota is unavailable, the endpoint falls back silently to a keyword rule-based engine (vegetarian, spicy, budget, category, ingredient filters) using the same live available-item list.
+- **AI Sous-Chef (grounded recommender):** Operational with `gemini-2.0-flash`. The prompt is grounded to the live list of `isAvailable === true` menu items. When Gemini API quota is unavailable, the endpoint falls back silently to a keyword rule-based engine (vegetarian, spicy, budget, category, ingredient filters) using the same live available-item list, tagged with `⚡ Fallback: Rule Engine` in the UI.
 - **Rescue Menu AI Description Generator (beta):** Dishes with surplus ingredients shown at 15% discount. AI-generated sustainability pitch copy via Gemini. Marked as *(beta)* because if Gemini API quota is exhausted, it displays a static fallback description string.
 
 ### 🌟 Bonus — Beyond Problem Statement
@@ -133,7 +134,7 @@ Responsive dark-themed UI across all pages. Guest menu board with real-time avai
 
 ## AI Usage
 
-1. **AI Sous-Chef** — `POST /api/sous-chef` uses Gemini (`gemini-flash-lite-latest`) to answer natural-language dish queries grounded to only currently available menu items. Customer taste preferences are injected into the system prompt at request time.
+1. **AI Sous-Chef** — `POST /api/sous-chef` uses Gemini (`gemini-2.0-flash`) to answer natural-language dish queries grounded to only currently available menu items. Customer taste preferences are injected into the system prompt at request time.
 2. **Rescue Menu Description Generator** — `POST /api/rescue-description` uses Gemini to write a sustainability pitch for a surplus-ingredient dish.
 
 ---
@@ -165,11 +166,12 @@ All writes to sensitive Firestore collections (`ingredients`, `orders`, `invento
 
 ---
 
-## Known Limitations / Future Improvements
+## Known Limitations / Deliberate Scope Decisions
 
-- **Time-slot reservation conflicts are not auto-released (beta).** Reservations for past time slots remain recorded indefinitely unless cleared by staff.
-- **Gemini API quota dependency for Rescue Menu descriptions (beta).** Falls back to a static string when API limits are hit.
-- **Single restaurant scope.** Multi-tenancy schema supported (`restaurantId`), but UI targets single-location bistro.
+- **Mobile Number OTP Authentication intentionally omitted:** Mobile SMS OTP authentication was evaluated as a feature, but intentionally omitted because production SMS delivery (Twilio / Firebase Phone Auth) requires an upgraded paid billing plan, whereas PlateIQ operates strictly on 100% free-tier services. Passwordless email magic links and Google OAuth 2.0 were implemented instead to maintain 100% free-tier compliance.
+- **Time-slot reservation conflicts are not auto-released (beta):** Reservations for past time slots remain recorded indefinitely unless cleared by staff.
+- **Gemini API quota dependency for Rescue Menu descriptions (beta):** Falls back to a static string when API limits are hit.
+- **Single restaurant scope:** Multi-tenancy schema supported (`restaurantId`), but UI targets single-location bistro.
 
 ---
 
